@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useState } from "react";
 
 export function ProjectGantt({ tasks = [], headerAction }) {
-    const [view, setView] = useState(ViewMode.Month);
+    const [view] = useState(ViewMode.Month);
 
     if (tasks.length === 0) {
         return (

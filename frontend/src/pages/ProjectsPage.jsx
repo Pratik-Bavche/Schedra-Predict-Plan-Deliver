@@ -54,24 +54,23 @@ export default function ProjectsPage() {
     const [currentId, setCurrentId] = useState(null)
 
 
-    const fetchProjects = async () => {
-        try {
-            const data = await api.get("/projects")
-            const mapped = data.map(p => ({
-                ...p,
-                id: p.projectId,
-                risk: p.riskLevel,
-                _id: p._id,
-                dueDate: p.dueDate,
-                status: calculateCurrentPhase(p)
-            }))
-            setProjects(mapped)
-        } catch (error) {
-            toast.error("Failed to fetch projects")
-        }
-    }
-
     useEffect(() => {
+        const fetchProjects = async () => {
+            try {
+                const data = await api.get("/projects")
+                const mapped = data.map(p => ({
+                    ...p,
+                    id: p.projectId,
+                    risk: p.riskLevel,
+                    _id: p._id,
+                    dueDate: p.dueDate,
+                    status: calculateCurrentPhase(p)
+                }))
+                setProjects(mapped)
+            } catch {
+                toast.error("Failed to fetch projects")
+            }
+        }
         fetchProjects()
     }, [])
 

@@ -25,7 +25,7 @@ export default function ProjectDetailsPage() {
                 // Fetch using internal ID
                 const data = await api.get(`/projects/${id}`)
                 setProject(data)
-            } catch (error) {
+            } catch {
                 toast.error("Failed to load project details")
             } finally {
                 setLoading(false)

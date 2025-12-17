@@ -31,7 +31,7 @@ export default function ForecastsPage() {
 
             setPrediction(result)
             toast.success("Simulation complete", { description: "AI Forecast updated." })
-        } catch (error) {
+        } catch {
             toast.error("Simulation failed")
         } finally {
             setLoading(false)

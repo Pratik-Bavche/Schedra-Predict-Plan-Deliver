@@ -83,7 +83,9 @@ const DropdownMenuCheckboxItem = React.forwardRef(({ className, children, checke
         )}
         checked={checked}
         {...props}
-    />
+    >
+        {children}
+    </DropdownMenuPrimitive.CheckboxItem>
 ))
 DropdownMenuCheckboxItem.displayName =
     DropdownMenuPrimitive.CheckboxItem.displayName

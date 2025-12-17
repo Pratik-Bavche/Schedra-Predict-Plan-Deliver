@@ -1,12 +1,7 @@
 import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
-const data = [
-    { name: "Labor", value: 45000, color: "hsl(var(--primary))" },
-    { name: "Materials", value: 32000, color: "#22d3ee" },
-    { name: "Equipment", value: 18000, color: "#f472b6" },
-    { name: "Overhead", value: 9000, color: "#a3a3a3" },
-]
+
 
 export function CostBreakdownChart({ data, className }) {
     const chartData = data || [

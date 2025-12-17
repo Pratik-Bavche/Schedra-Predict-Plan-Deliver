@@ -1,13 +1,7 @@
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
-const data = [
-    { site: "Site A", manpower: 120 },
-    { site: "Site B", manpower: 85 },
-    { site: "Site C", manpower: 150 },
-    { site: "Site D", manpower: 60 },
-    { site: "HQ", manpower: 45 },
-]
+
 
 export function ResourceUtilizationChart({ data, className }) {
     const chartData = data || [

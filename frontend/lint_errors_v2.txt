@@ -1,0 +1,53 @@
+﻿
+> schedra@0.0.0 lint
+> eslint .
+
+
+D:\DYPCOE\Additional\WEB\Projects\Schedra\frontend\src\components\theme-provider.jsx
+  51:14  error  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+D:\DYPCOE\Additional\WEB\Projects\Schedra\frontend\src\components\ui\badge.jsx
+  32:17  error  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+D:\DYPCOE\Additional\WEB\Projects\Schedra\frontend\src\components\ui\button.jsx
+  47:18  error  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+D:\DYPCOE\Additional\WEB\Projects\Schedra\frontend\src\lib\api.js
+  11:9  error  Unnecessary try/catch wrapper  no-useless-catch
+
+D:\DYPCOE\Additional\WEB\Projects\Schedra\frontend\src\pages\AnalyticsPage.jsx
+  35:13  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+  33 |     useEffect(() => {
+  34 |         if (selectedProjectId === "all") {
+> 35 |             setResourceData(null) // Reset to default
+     |             ^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  36 |             setCostData(null)    // Reset to default
+  37 |             // If filtering by date on aggregate view, we need logic for that or keep defaults
+  38 |             // For now, let's allow insightGenerator to handle "mock" aggregate updates too?  react-hooks/set-state-in-effect
+
+D:\DYPCOE\Additional\WEB\Projects\Schedra\frontend\src\pages\ProjectsPage.jsx
+  75:9  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+  73 |
+  74 |     useEffect(() => {
+> 75 |         fetchProjects()
+     |         ^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  76 |     }, [])
+  77 |
+  78 |     const handleOpenCreate = () => {  react-hooks/set-state-in-effect
+
+Γ£û 6 problems (6 errors, 0 warnings)
+

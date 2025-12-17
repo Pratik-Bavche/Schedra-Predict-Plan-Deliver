@@ -54,23 +54,25 @@ export default function ProjectsPage() {
     const [currentId, setCurrentId] = useState(null)
 
 
-    useEffect(() => {
-        const fetchProjects = async () => {
-            try {
-                const data = await api.get("/projects")
-                const mapped = data.map(p => ({
-                    ...p,
-                    id: p.projectId,
-                    risk: p.riskLevel,
-                    _id: p._id,
-                    dueDate: p.dueDate,
-                    status: calculateCurrentPhase(p)
-                }))
-                setProjects(mapped)
-            } catch {
-                toast.error("Failed to fetch projects")
-            }
+    const fetchProjects = async () => {
+        try {
+            const data = await api.get("/projects")
+            const mapped = data.map(p => ({
+                ...p,
+                id: p.projectId,
+                risk: p.riskLevel,
+                _id: p._id,
+                dueDate: p.dueDate,
+                status: calculateCurrentPhase(p)
+            }))
+            setProjects(mapped)
+        } catch {
+            toast.error("Failed to fetch projects")
         }
+    }
+
+    useEffect(() => {
+        // eslint-disable-next-line react-hooks/exhaustive-deps
         fetchProjects()
     }, [])
 

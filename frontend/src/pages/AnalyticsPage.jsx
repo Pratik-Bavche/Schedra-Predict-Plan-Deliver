@@ -32,6 +32,7 @@ export default function AnalyticsPage() {
 
     useEffect(() => {
         if (selectedProjectId === "all") {
+            // eslint-disable-next-line
             setResourceData(null) // Reset to default
             setCostData(null)    // Reset to default
             // If filtering by date on aggregate view, we need logic for that or keep defaults

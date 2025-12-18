@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
 import { CostOverviewChart } from "@/components/dashboard/CostOverviewChart"
 import { RiskHeatmap } from "@/components/dashboard/RiskHeatmap"
 import { ProjectGantt } from "@/components/dashboard/ProjectGantt"
-import { DollarSign, Activity, Users, AlertTriangle } from "lucide-react"
+import { DollarSign, Activity, Users, AlertTriangle, Bell, Trash2 } from "lucide-react"
 import { api } from "@/lib/api"
 import { toast } from "sonner"
-import { generateProjectForecast, generateProjectTimeline } from "@/lib/insightGenerator"
+import { generateProjectForecast, generateProjectTimeline, calculateCurrentPhase } from "@/lib/insightGenerator"
 import {
     Dialog,
     DialogContent,
@@ -30,20 +31,30 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 export default function DashboardPage() {
     const [stats, setStats] = useState({
         totalBudget: 0,
         totalProjects: 0,
-        delayDays: 0, // Changed from scheduleDelay for clarity
+        delayDays: 0,
         totalResources: 0,
         highRiskCount: 0,
         forecastData: [],
         riskData: [],
         ganttTasks: [],
-        allProjects: []
+        allProjects: [],
+        notifications: []
     })
     const [loading, setLoading] = useState(true)
+    const [loadingForecast, setLoadingForecast] = useState(false)
     const [selectedMetric, setSelectedMetric] = useState(null)
     const [ganttFilter, setGanttFilter] = useState("all")
 
@@ -53,87 +64,69 @@ export default function DashboardPage() {
                 const response = await api.get("/projects")
                 const projects = Array.isArray(response) ? response : [];
 
-                // 1. Basic Stats
+                // 1. Basic Stats & Local Aggregations
                 let budget = 0;
                 let resources = 0;
                 let riskCount = 0;
                 let delay = 0;
                 const now = new Date();
-
-                // 2. Prepare for aggregations
-                const aggregatedForecast = {}; // key: Month, val: {actual, forecast}
-                const regionMap = {}; // key: Region, val: {count, riskScoreSum}
-
-                // We will generate filtered tasks on render, so just storing projects is enough for now,
-                // but let's keep calculating the implementation-agnostic stats here.
+                const regionMap = {};
 
                 projects.forEach(p => {
                     try {
-                        // Budget
                         budget += (Number(p.budget) || 0);
-
-                        // Resources
                         resources += (parseInt(p.teamSize) || 0);
+                        if (p.riskLevel === 'High' || p.riskLevel === 'Critical') riskCount++;
 
-                        // Risk
-                        if (p.riskLevel === 'High' || p.riskLevel === 'Critical') {
-                            riskCount++;
-                        }
-
-                        // Delay (Overdue)
                         if (p.dueDate) {
                             const due = new Date(p.dueDate);
-                            // Valid date check
                             if (!isNaN(due.getTime()) && p.status !== 'Completed' && now > due) {
-                                const diffTime = Math.abs(now - due);
-                                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                                const diffDays = Math.ceil(Math.abs(now - due) / (1000 * 60 * 60 * 24));
                                 delay += diffDays;
                             }
-                        }
-
-                        // Cost Forecast Aggregation
-                        const pForecast = generateProjectForecast(p);
-                        if (Array.isArray(pForecast)) {
-                            pForecast.forEach(entry => {
-                                if (entry && entry.month) {
-                                    if (!aggregatedForecast[entry.month]) {
-                                        aggregatedForecast[entry.month] = { actual: 0, forecast: 0 };
-                                    }
-                                    aggregatedForecast[entry.month].actual += (entry.actual || 0);
-                                    aggregatedForecast[entry.month].forecast += (entry.forecast || 0);
-                                }
-                            });
                         }
 
                         // Regional Risk Aggregation
                         const region = p.region || p.type || "General";
                         if (!regionMap[region]) regionMap[region] = { count: 0, scoreSum: 0 };
-
-                        let score = 20;
-                        if (p.riskLevel === 'Medium') score = 55;
-                        if (p.riskLevel === 'High') score = 85;
-                        if (p.riskLevel === 'Critical') score = 95;
-
+                        let score = p.riskLevel === 'Critical' ? 95 : p.riskLevel === 'High' ? 85 : p.riskLevel === 'Medium' ? 55 : 20;
                         regionMap[region].count++;
                         regionMap[region].scoreSum += score;
-                    } catch (err) {
-                        console.warn("Skipping malformed project data:", p, err);
-                    }
+                    } catch (err) { console.warn("Skipping malformed project data", p); }
                 });
 
-                // Finalize Forecast Data
-                const finalForecast = Object.keys(aggregatedForecast).map(month => ({
-                    month,
-                    actual: aggregatedForecast[month].actual,
-                    forecast: aggregatedForecast[month].forecast
-                }));
-
-                // Finalize Risk Data
                 const finalRisk = Object.keys(regionMap).map(r => ({
                     region: r,
-                    factor: "Composite", // Simplified for aggregation
+                    factor: "Composite",
                     score: Math.round(regionMap[r].scoreSum / regionMap[r].count)
                 }));
+
+                // Notifications Logic
+                const recencyLimitDays = 7;
+                const lastCleared = localStorage.getItem('notificationLastCleared');
+                const lastClearedDate = lastCleared ? new Date(parseInt(lastCleared)) : new Date(0);
+                const activeNotifications = [];
+
+                projects.forEach(p => {
+                    const timeline = generateProjectTimeline(p);
+                    const status = calculateCurrentPhase(p);
+                    if (status === 'Completed' && p.dueDate) {
+                        const end = new Date(p.dueDate);
+                        const diff = (now - end) / (1000 * 60 * 60 * 24);
+                        if (diff >= 0 && diff <= recencyLimitDays && end > lastClearedDate) {
+                            activeNotifications.push({ ...p, status: 'Completed', phaseName: 'Completed', eventDate: end });
+                        }
+                    } else {
+                        const currentPhaseObj = timeline.find(t => now >= new Date(t.start) && now <= new Date(t.end));
+                        if (currentPhaseObj) {
+                            const startDate = new Date(currentPhaseObj.start);
+                            const diff = (now - startDate) / (1000 * 60 * 60 * 24);
+                            if (diff >= 0 && diff <= recencyLimitDays && startDate > lastClearedDate) {
+                                activeNotifications.push({ ...p, status: currentPhaseObj.name, phaseName: currentPhaseObj.name, eventDate: startDate });
+                            }
+                        }
+                    }
+                });
 
                 setStats({
                     totalBudget: budget,
@@ -141,21 +134,69 @@ export default function DashboardPage() {
                     delayDays: delay,
                     totalResources: resources,
                     highRiskCount: riskCount,
-                    forecastData: finalForecast,
+                    forecastData: [], // Will be filled by AI
                     riskData: finalRisk,
-                    // We generate tasks dynamically now
                     ganttTasks: [],
-                    allProjects: projects
-                })
+                    allProjects: projects,
+                    notifications: activeNotifications
+                });
+
+                setLoading(false);
+
+                // 2. Fetch Aggregated AI Forecast
+                if (projects.length > 0) {
+                    fetchAIForecast(projects);
+                }
+
             } catch (error) {
-                toast.error("Failed to load dashboard data")
-                console.error(error)
-            } finally {
-                setLoading(false)
+                toast.error("Failed to load dashboard data");
+                console.error(error);
+                setLoading(false);
             }
         }
         fetchData()
     }, [])
+
+    const fetchAIForecast = async (projects) => {
+        setLoadingForecast(true);
+        try {
+            // Send request to AI
+            const res = await api.post("/predict/ai", {
+                type: "dashboard_cost_forecast",
+                projects: projects.map(p => ({ name: p.name, budget: p.budget }))
+            });
+
+            if (res && res.forecastData) {
+                setStats(prev => ({ ...prev, forecastData: res.forecastData }));
+            }
+        } catch (error) {
+            console.error("AI Forecast Failed", error);
+            // Fallback: Local Aggregation if API completely fails (though backend handles fallback usually)
+            fallbackLocalForecast(projects);
+        } finally {
+            setLoadingForecast(false);
+        }
+    }
+
+    const fallbackLocalForecast = (projects) => {
+        const aggregatedForecast = {};
+        projects.forEach(p => {
+            const pForecast = generateProjectForecast(p);
+            if (Array.isArray(pForecast)) {
+                pForecast.forEach(entry => {
+                    if (!aggregatedForecast[entry.month]) aggregatedForecast[entry.month] = { actual: 0, forecast: 0 };
+                    aggregatedForecast[entry.month].actual += (entry.actual || 0);
+                    aggregatedForecast[entry.month].forecast += (entry.forecast || 0);
+                });
+            }
+        });
+        const finalForecast = Object.keys(aggregatedForecast).map(month => ({
+            month,
+            actual: aggregatedForecast[month].actual,
+            forecast: aggregatedForecast[month].forecast
+        }));
+        setStats(prev => ({ ...prev, forecastData: finalForecast }));
+    }
 
     const getFilteredProjects = () => {
         if (!selectedMetric) return [];
@@ -234,12 +275,74 @@ export default function DashboardPage() {
         return tasks;
     }
 
+    const clearNotifications = () => {
+        localStorage.setItem('notificationLastCleared', Date.now().toString());
+        setStats(prev => ({ ...prev, notifications: [] }));
+        toast.success("Notifications cleared");
+    }
+
     if (loading) return <div className="p-8">Loading dashboard...</div>
 
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between space-y-2">
                 <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
+                <div className="flex items-center space-x-2">
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="outline" size="icon" className="relative">
+                                <Bell className="h-4 w-4" />
+                                {stats.notifications.length > 0 && (
+                                    <span className="absolute top-0 right-0 h-2 w-2 rounded-full bg-red-600" />
+                                )}
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-[300px]">
+                            <div className="flex items-center justify-between px-2 py-1.5">
+                                <DropdownMenuLabel className="p-0">Project Updates</DropdownMenuLabel>
+                                {stats.notifications.length > 0 && (
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-auto p-1 text-xs text-muted-foreground hover:text-destructive"
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            clearNotifications();
+                                        }}
+                                    >
+                                        Clear All
+                                    </Button>
+                                )}
+                            </div>
+                            <DropdownMenuSeparator />
+                            <div className="max-h-[300px] overflow-auto">
+                                {stats.notifications.length === 0 ? (
+                                    <div className="p-4 text-center text-sm text-muted-foreground">
+                                        No recent updates
+                                    </div>
+                                ) : (
+                                    stats.notifications.map((project) => (
+                                        <DropdownMenuItem key={project._id || project.id} className="flex flex-col items-start gap-1 p-3 cursor-pointer">
+                                            <div className="flex w-full justify-between items-center">
+                                                <span className={`font-medium ${project.status === "Completed" ? "text-green-600" : ""}`}>
+                                                    {project.name}
+                                                </span>
+                                                <span className="text-xs text-muted-foreground">{new Date(project.eventDate || project.endDate).toLocaleDateString()}</span>
+                                            </div>
+                                            <div className="text-xs text-muted-foreground">
+                                                {project.status === "Completed" ? (
+                                                    <span className="text-green-600 font-semibold">Project Completed</span>
+                                                ) : (
+                                                    <span>Moved to <span className="font-semibold text-primary">{project.status}</span></span>
+                                                )}
+                                            </div>
+                                        </DropdownMenuItem>
+                                    ))
+                                )}
+                            </div>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                </div>
             </div>
 
             {/* Top Stats Cards */}
@@ -302,7 +405,7 @@ export default function DashboardPage() {
 
             {/* Main Content Grid */}
             <div className="grid grid-cols-1 md:grid-cols-7 gap-6">
-                <CostOverviewChart data={stats.forecastData} />
+                <CostOverviewChart data={stats.forecastData} loading={loadingForecast} />
                 <RiskHeatmap data={stats.riskData} />
             </div>
 

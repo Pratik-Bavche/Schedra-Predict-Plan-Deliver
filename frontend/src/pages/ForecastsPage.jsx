@@ -8,7 +8,7 @@ import { api } from "@/lib/api"
 import { toast } from "sonner"
 
 export default function ForecastsPage() {
-    const [labor, setLabor] = useState(80)
+    const [labor, setLabor] = useState(70)
     const [material, setMaterial] = useState(0)
     const [weather, setWeather] = useState(20)
     const [loading, setLoading] = useState(false)
@@ -60,7 +60,7 @@ export default function ForecastsPage() {
                                 <Label>Labor Availability ({labor}%)</Label>
                                 <span className="text-xs text-muted-foreground">Normal</span>
                             </div>
-                            <Slider defaultValue={[80]} max={100} min={50} step={1} onValueChange={(vals) => setLabor(vals[0])} />
+                            <Slider defaultValue={[70]} max={100} min={0} step={1} onValueChange={(vals) => setLabor(vals[0])} />
                             <p className="text-xs text-muted-foreground">Adjust crew size relative to plan.</p>
                         </div>
 
@@ -99,7 +99,7 @@ export default function ForecastsPage() {
                             <div className="flex items-center justify-between border-b border-primary-foreground/20 pb-4">
                                 <span className="font-medium">Estimated Completion</span>
                                 <span className="text-2xl font-bold">
-                                    {prediction ? `+${prediction.predicted_delay_days} Days` : "Oct 15, 2025"}
+                                    {prediction ? `+${prediction.predicted_delay_days} Days` : new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                                 </span>
                             </div>
                             <div className="flex items-center justify-between border-b border-primary-foreground/20 pb-4">
@@ -116,7 +116,7 @@ export default function ForecastsPage() {
                             <div className="flex items-center justify-between">
                                 <span className="font-medium">Risk Score</span>
                                 <span className="text-2xl font-bold">
-                                    {prediction ? prediction.risk_score : "87"}
+                                    {prediction ? `${prediction.risk_score}%` : "87%"}
                                 </span>
                             </div>
                         </CardContent>

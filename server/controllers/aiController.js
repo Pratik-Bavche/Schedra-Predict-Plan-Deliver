@@ -132,6 +132,39 @@ export const getAIAnalytics = async (req, res) => {
                     ]
                 }
             `;
+        } else if (type === "project_cost_forecast") {
+            prompt = `
+                You are a Construction Project Manager. Analyze this project:
+                Name: ${projectData.name}
+                Budget: $${projectData.budget}
+                Start Date: ${projectData.startDate}
+                
+                Generate a 6-month 'Actual vs Predicted' cumulative cost forecast based on the budget curve.
+                
+                Return ONLY valid JSON in this format:
+                {
+                    "forecastData": [
+                         {"name": "Jan", "Actual": 20000, "Predicted": 22000},
+                         ... (6 months)
+                    ],
+                    "insight": "Brief financial health check."
+                }
+            `;
+        } else if (type === "project_risk_assessment") {
+            prompt = `
+                You are a Risk Manager. Analyze risks for this project: ${projectData.name} (Risk Level: ${projectData.riskLevel}).
+                Categories: Technical, Financial, Schedule, Environmental, Operational.
+                
+                Assign a risk score (0-100) and primary factor for 3-4 relevant categories.
+                
+                Return ONLY valid JSON in this format:
+                {
+                    "riskData": [
+                         {"region": "Technical", "factor": "Integration", "score": 65},
+                         {"region": "Financial", "factor": "Cost Overrun", "score": 40}
+                    ]
+                }
+            `;
         }
 
 
@@ -340,6 +373,35 @@ const generateFallbackData = (type, projectData) => {
                 ]
             };
         }
+
+        return { riskData };
+    } else if (type === "project_cost_forecast") {
+        const budget = Number(projectData.budget) || 50000;
+        const monthly = budget / 12; // Assume 1 year default
+        const data = [];
+
+        for (let i = 0; i < 6; i++) {
+            const variance = 0.9 + (Math.random() * 0.3); // 0.9 to 1.2
+            data.push({
+                name: `Month ${i + 1}`,
+                Actual: Math.round(monthly * (i + 1) * variance),
+                Predicted: Math.round(monthly * (i + 1))
+            });
+        }
+
+        return {
+            forecastData: data,
+            insight: "Project spending is tracking against the baseline curve (Backend Fallback)."
+        };
+    } else if (type === "project_risk_assessment") {
+        const baseScore = projectData.riskLevel === 'High' ? 80 : (projectData.riskLevel === 'Medium' ? 50 : 20);
+
+        const riskData = [
+            { region: "Technical", factor: "Complexity", score: baseScore + Math.floor(Math.random() * 10) },
+            { region: "Financial", factor: "Budget", score: baseScore - 5 },
+            { region: "Schedule", factor: "Timeline", score: baseScore + 5 },
+            { region: "Operational", factor: "Resources", score: baseScore }
+        ];
 
         return { riskData };
     }

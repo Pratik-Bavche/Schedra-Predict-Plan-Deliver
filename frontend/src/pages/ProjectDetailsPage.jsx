@@ -18,6 +18,11 @@ export default function ProjectDetailsPage() {
     const navigate = useNavigate()
     const [project, setProject] = useState(null)
     const [loading, setLoading] = useState(true)
+    const [aiLoading, setAiLoading] = useState(false)
+    const [aiStats, setAiStats] = useState({
+        forecast: [],
+        risks: []
+    })
 
     useEffect(() => {
         const fetchProject = async () => {
@@ -25,6 +30,11 @@ export default function ProjectDetailsPage() {
                 // Fetch using internal ID
                 const data = await api.get(`/projects/${id}`)
                 setProject(data)
+
+                // Fetch AI Stats
+                if (data) {
+                    fetchProjectAI(data)
+                }
             } catch {
                 toast.error("Failed to load project details")
             } finally {
@@ -33,6 +43,31 @@ export default function ProjectDetailsPage() {
         }
         fetchProject()
     }, [id])
+
+    const fetchProjectAI = async (projectData) => {
+        setAiLoading(true)
+        try {
+            // Parallel fetch for speed
+            const [forecastRes, riskRes] = await Promise.all([
+                api.post("/predict/ai", { type: "project_cost_forecast", projectData }),
+                api.post("/predict/ai", { type: "project_risk_assessment", projectData })
+            ]);
+
+            setAiStats({
+                forecast: forecastRes.forecastData || [],
+                risks: riskRes.riskData || []
+            });
+
+            if (forecastRes.insight) toast.info("AI Insight", { description: forecastRes.insight });
+
+        } catch (error) {
+            console.error("AI Project Analysis Failed", error)
+            // Fallback handled by backend usually, but if API fails entirely:
+            setAiStats({ forecast: [], risks: [] })
+        } finally {
+            setAiLoading(false)
+        }
+    }
 
     if (loading) return <div className="p-8">Loading...</div>
     if (!project) return <div className="p-8">Project not found</div>
@@ -111,8 +146,8 @@ export default function ProjectDetailsPage() {
             </Card>
 
             <div className="grid grid-cols-1 md:grid-cols-7 gap-6">
-                <CostOverviewChart data={forecastData} />
-                <RiskHeatmap />
+                <CostOverviewChart data={aiStats.forecast.length > 0 ? aiStats.forecast : forecastData} loading={aiLoading} />
+                <RiskHeatmap data={aiStats.risks} loading={aiLoading} />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-7 gap-6">

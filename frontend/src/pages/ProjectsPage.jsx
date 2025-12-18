@@ -102,6 +102,12 @@ export default function ProjectsPage() {
     }
 
     const handleSubmit = async () => {
+        // Validation
+        if (!formData.name || !formData.type || !formData.budget || !formData.startDate || !formData.endDate) {
+            toast.error("Please fill in all required fields (Name, Type, Budget, Dates)")
+            return
+        }
+
         try {
             const payload = {
                 ...formData,
@@ -246,15 +252,34 @@ export default function ProjectsPage() {
                                             </div>
                                             <div className="grid gap-2">
                                                 <Label>Methodology</Label>
-                                                <Select value={formData.methodology} onValueChange={(val) => setFormData({ ...formData, methodology: val })}>
-                                                    <SelectTrigger><SelectValue /></SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="Agile">Agile</SelectItem>
-                                                        <SelectItem value="Scrum">Scrum</SelectItem>
-                                                        <SelectItem value="Waterfall">Waterfall</SelectItem>
-                                                        <SelectItem value="Kanban">Kanban</SelectItem>
-                                                    </SelectContent>
-                                                </Select>
+                                                <div className="space-y-2">
+                                                    <Select
+                                                        value={["Agile", "Scrum", "Waterfall", "Kanban"].includes(formData.methodology) ? formData.methodology : "Other"}
+                                                        onValueChange={(val) => {
+                                                            if (val === "Other") {
+                                                                setFormData({ ...formData, methodology: "" })
+                                                            } else {
+                                                                setFormData({ ...formData, methodology: val })
+                                                            }
+                                                        }}
+                                                    >
+                                                        <SelectTrigger><SelectValue /></SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="Agile">Agile</SelectItem>
+                                                            <SelectItem value="Scrum">Scrum</SelectItem>
+                                                            <SelectItem value="Waterfall">Waterfall</SelectItem>
+                                                            <SelectItem value="Kanban">Kanban</SelectItem>
+                                                            <SelectItem value="Other">Other</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                    {(!["Agile", "Scrum", "Waterfall", "Kanban"].includes(formData.methodology)) && (
+                                                        <Input
+                                                            value={formData.methodology}
+                                                            onChange={(e) => setFormData({ ...formData, methodology: e.target.value })}
+                                                            placeholder="Enter custom methodology"
+                                                        />
+                                                    )}
+                                                </div>
                                             </div>
                                             <div className="grid gap-2">
                                                 <Label>Repo Link</Label>

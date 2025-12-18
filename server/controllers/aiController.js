@@ -204,7 +204,7 @@ export const getAIAnalytics = async (req, res) => {
 const generateFallbackData = (type, projectData) => {
     // Generate seeded randomness based on project name for consistency
     let seed = 0;
-    const pName = projectData.name || "Default";
+    const pName = (projectData && projectData.name) ? projectData.name : "Default";
     for (let i = 0; i < pName.length; i++) {
         seed += pName.charCodeAt(i);
     }
@@ -213,7 +213,7 @@ const generateFallbackData = (type, projectData) => {
         return x - Math.floor(x);
     };
 
-    const budget = parseFloat(projectData.budget) || 10000;
+    const budget = (projectData && projectData.budget) ? parseFloat(projectData.budget) : 10000;
 
     if (type === "cost_forecast") {
         const variance = 1 + (pseudoRandom(1) * 0.4 - 0.2);
@@ -260,6 +260,38 @@ const generateFallbackData = (type, projectData) => {
                 { name: "Testing", status: "Pending" }
             ],
             insight: "Timeline analysis completed (Backend Fallback)."
+        };
+    } else if (type === "dashboard_cost_forecast") {
+        const data = [];
+        // Handle projectData as either { projects: [...] } or just [...]
+        let projects = [];
+        if (projectData && Array.isArray(projectData.projects)) {
+            projects = projectData.projects;
+        } else if (Array.isArray(projectData)) {
+            projects = projectData;
+        }
+
+        let totalBudget = 0;
+        if (projects.length > 0) {
+            totalBudget = projects.reduce((acc, p) => acc + (Number(p.budget) || 0), 0);
+        } else {
+            totalBudget = 300000; // Mock 300k if no data
+        }
+
+        const monthlyBase = totalBudget / 6;
+
+        for (let i = 1; i <= 6; i++) {
+            // Simulate variance: Actual might be 0.8x to 1.2x of Predicted
+            const variance = 0.8 + (Math.random() * 0.4);
+            data.push({
+                name: `Month ${i}`,
+                Actual: Math.round(monthlyBase * variance),
+                Predicted: Math.round(monthlyBase)
+            });
+        }
+        return {
+            forecastData: data,
+            insight: "Portfolio spending is projected based on current budgets (Backend Fallback)."
         };
     } else if (type === "dashboard_cost_forecast") {
         // Aggregate fallback for dashboard

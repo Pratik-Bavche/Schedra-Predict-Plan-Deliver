@@ -191,9 +191,9 @@ export default function DashboardPage() {
             }
         });
         const finalForecast = Object.keys(aggregatedForecast).map(month => ({
-            month,
-            actual: aggregatedForecast[month].actual,
-            forecast: aggregatedForecast[month].forecast
+            name: month,
+            Actual: aggregatedForecast[month].actual,
+            Predicted: aggregatedForecast[month].forecast
         }));
         setStats(prev => ({ ...prev, forecastData: finalForecast }));
     }
@@ -406,7 +406,7 @@ export default function DashboardPage() {
             {/* Main Content Grid */}
             <div className="grid grid-cols-1 md:grid-cols-7 gap-6">
                 <CostOverviewChart data={stats.forecastData} loading={loadingForecast} />
-                <RiskHeatmap data={stats.riskData} />
+                <RiskHeatmap data={stats.riskData} loading={loadingRisk} />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-7 gap-6">

@@ -331,12 +331,32 @@ const generateFallbackData = (type, projectData) => {
 
         const monthlyBase = totalBudget / 6;
 
+        // Create a stable seed from project names to ensure consistent fallback data across refreshes
+        let seed = 0;
+        projects.forEach(p => {
+            const name = p.name || "";
+            for (let j = 0; j < name.length; j++) {
+                seed += name.charCodeAt(j);
+            }
+        });
+
+        const pseudoRandom = (offset) => {
+            const x = Math.sin(seed + offset) * 10000;
+            return x - Math.floor(x);
+        };
+
         for (let i = 1; i <= 6; i++) {
-            const variance = 0.8 + (Math.random() * 0.4);
+            // Use seeded random for variance so it looks dynamic but stays constant on refresh
+            const curve = 1 + (Math.sin(i * 0.5) * 0.2); // Seasonal curve
+            const noise = (pseudoRandom(i) * 0.3) - 0.15; // Random noise
+
+            const predictedVal = monthlyBase;
+            const actualVal = monthlyBase * (curve + noise);
+
             data.push({
                 name: `Month ${i}`,
-                Actual: Math.round(monthlyBase * variance),
-                Predicted: Math.round(monthlyBase)
+                Actual: Math.round(actualVal),
+                Predicted: Math.round(predictedVal)
             });
         }
         return {

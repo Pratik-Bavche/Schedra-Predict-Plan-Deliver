@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { MoreHorizontal, Plus, Archive, RotateCcw } from "lucide-react"
+import { MoreHorizontal, Plus, Archive, RotateCcw, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { api } from "@/lib/api"
 import { useNavigate } from "react-router-dom"
@@ -20,6 +20,7 @@ import { calculateCurrentPhase } from "@/lib/insightGenerator"
 export default function ProjectsPage() {
     const navigate = useNavigate()
     const [projects, setProjects] = useState([])
+    const [loading, setLoading] = useState(true)
     const [formData, setFormData] = useState({
         // Common
         name: "",
@@ -55,6 +56,7 @@ export default function ProjectsPage() {
 
 
     const fetchProjects = async () => {
+        setLoading(true)
         try {
             const data = await api.get("/projects")
             const mapped = data.map(p => ({
@@ -68,6 +70,8 @@ export default function ProjectsPage() {
             setProjects(mapped)
         } catch {
             toast.error("Failed to fetch projects")
+        } finally {
+            setLoading(false)
         }
     }
 
@@ -451,7 +455,15 @@ export default function ProjectsPage() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {projects.length === 0 ? (
+                                {loading ? (
+                                    <TableRow>
+                                        <TableCell colSpan={8} className="h-24 text-center">
+                                            <div className="flex justify-center items-center">
+                                                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                ) : projects.length === 0 ? (
                                     <TableRow>
                                         <TableCell colSpan={8} className="text-center h-24 text-muted-foreground">
                                             No projects found. Create one to get started.

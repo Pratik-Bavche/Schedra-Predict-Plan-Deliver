@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { CostOverviewChart } from "@/components/dashboard/CostOverviewChart"
 import { RiskHeatmap } from "@/components/dashboard/RiskHeatmap"
 import { ProjectGantt } from "@/components/dashboard/ProjectGantt"
-import { DollarSign, Activity, Users, AlertTriangle, Bell, Trash2 } from "lucide-react"
+import { DollarSign, Activity, Users, AlertTriangle, Bell, Trash2, Loader2 } from "lucide-react"
 import { api } from "@/lib/api"
 import { toast } from "sonner"
 import { generateProjectForecast, generateProjectTimeline, calculateCurrentPhase } from "@/lib/insightGenerator"
@@ -321,7 +321,26 @@ export default function DashboardPage() {
         toast.success("Notifications cleared");
     }
 
-    if (loading) return <div className="p-8">Loading dashboard...</div>
+    if (loading) return (
+        <div className="flex h-[50vh] w-full items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+    )
+
+    if (stats.totalProjects === 0) return (
+        <div className="flex h-[80vh] w-full flex-col items-center justify-center space-y-4 text-center">
+            <div className="rounded-full bg-accent/20 p-6">
+                <Activity className="h-12 w-12 text-primary" />
+            </div>
+            <h2 className="text-2xl font-bold tracking-tight">No Projects Yet</h2>
+            <p className="max-w-[500px] text-muted-foreground">
+                Your dashboard is empty because you haven't created any projects. Start by creating a project to see analytics and insights here.
+            </p>
+            <Button onClick={() => window.location.href = '/projects'}>
+                Create Your First Project
+            </Button>
+        </div>
+    )
 
     return (
         <div className="space-y-6">

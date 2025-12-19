@@ -16,7 +16,22 @@ const PORT = process.env.PORT || 5000;
 
 // Middleware
 app.use(cors({
-    origin: ["https://schedra-predict-plan-deliver-client.vercel.app", "http://localhost:5173", "http://localhost:5000"],
+    origin: (origin, callback) => {
+        const allowedOrigins = [
+            "https://schedra-predict-plan-deliver-client.vercel.app",
+            "http://localhost:5173",
+            "http://localhost:5000"
+        ];
+
+        // Allow requests with no origin (like mobile apps or curl requests)
+        if (!origin) return callback(null, true);
+
+        if (allowedOrigins.indexOf(origin) !== -1 || origin.endsWith(".vercel.app") || origin.includes("localhost") || origin.includes("127.0.0.1")) {
+            return callback(null, true);
+        } else {
+            return callback(new Error('Not allowed by CORS'));
+        }
+    },
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     credentials: true
 }));

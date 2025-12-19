@@ -400,15 +400,20 @@ const generateFallbackData = (type, projectData) => {
         return { riskData };
     } else if (type === "project_cost_forecast") {
         const budget = Number(projectData.budget) || 50000;
-        const monthly = budget / 12; // Assume 1 year default
+        const monthly = budget / 6; // Spread over 6 months view
         const data = [];
 
-        for (let i = 0; i < 6; i++) {
-            const variance = 0.9 + (Math.random() * 0.3); // 0.9 to 1.2
+        for (let i = 1; i <= 6; i++) {
+            // Use project-specific seed for unique chart shapes per project
+            const uniqueCurve = 1 + (pseudoRandom(i + 10) * 0.3 - 0.15);
+
+            const predictedVal = monthly * i;
+            const actualVal = predictedVal * uniqueCurve;
+
             data.push({
-                name: `Month ${i + 1}`,
-                Actual: Math.round(monthly * (i + 1) * variance),
-                Predicted: Math.round(monthly * (i + 1))
+                name: `Month ${i}`,
+                Actual: Math.round(actualVal),
+                Predicted: Math.round(predictedVal)
             });
         }
 

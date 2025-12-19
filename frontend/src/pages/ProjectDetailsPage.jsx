@@ -145,9 +145,13 @@ export default function ProjectDetailsPage() {
                 </CardContent>
             </Card>
 
-            <div className="grid grid-cols-1 md:grid-cols-7 gap-6">
-                <CostOverviewChart data={aiStats.forecast.length > 0 ? aiStats.forecast : forecastData} loading={aiLoading} />
-                <RiskHeatmap data={aiStats.risks} loading={aiLoading} />
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="min-h-[400px]">
+                    <CostOverviewChart data={aiStats.forecast.length > 0 ? aiStats.forecast : forecastData} loading={aiLoading} />
+                </div>
+                <div className="min-h-[400px]">
+                    <RiskHeatmap data={aiStats.risks} loading={aiLoading} />
+                </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-7 gap-6">

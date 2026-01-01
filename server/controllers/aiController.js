@@ -221,7 +221,7 @@ export const getAIAnalytics = async (req, res) => {
             }
 
             const requestedModel = "gemini-2.0-flash";
-            const fallbackModel = "gemini-1.5-flash";
+            const fallbackModel = "gemini-2.0-flash";
 
             for (let k = 0; k < apiKeys.length; k++) {
                 const keyIdx = (currentGlobalKeyIndex + k) % apiKeys.length;
@@ -238,10 +238,9 @@ export const getAIAnalytics = async (req, res) => {
 
                         // Robustly extract textual response from various SDK shapes
                         try {
-                            // Preferred: result.response is a fetch-style Response
+                            // Preferred: result.response.text() is the standard Google Generative AI SDK method
                             if (result && result.response && typeof result.response.text === 'function') {
-                                const response = await result.response;
-                                const txt = await response.text();
+                                const txt = result.response.text();
                                 currentGlobalKeyIndex = keyIdx;
                                 return txt;
                             }
@@ -312,7 +311,7 @@ export const getAIAnalytics = async (req, res) => {
             const stableGenAI = new GoogleGenerativeAI(apiKeys[0]);
             const stableModel = stableGenAI.getGenerativeModel({ model: fallbackModel });
             const result = await stableModel.generateContent(prompt);
-            const response = await result.response;
+            const response = result.response;
             return response.text();
         };
 

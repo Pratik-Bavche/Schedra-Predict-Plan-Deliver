@@ -1,6 +1,6 @@
 # Schedra : AI-Powered Project Management & Scheduling Platform
 
-Schedra is an advanced project management platform that leverages Generative AI to predict project outcomes, assess risks, and optimize delivery timelines. It moves beyond simple task tracking to provide actionable intelligence for project managers.
+Schedra is an advanced project management platform that leverages Generative AI to predict project outcomes, assess risks, and optimize delivery timelines. It moves beyond simple task tracking to provide actionable intelligence for project managers. 
 
 ## 🚀 Key Features
 

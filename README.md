@@ -1,6 +1,6 @@
-﻿# Schedra: AI-Powered Project Management & Forecasting
+# Schedra : AI-Powered Project Management & Scheduling Platform
 
-Schedra is an advanced project management platform that leverages Generative AI to predict project outcomes, assess risks, and optimize delivery timelines. It moves beyond simple task tracking to provide actionable intelligence for project managers.
+Schedra is an advanced project management platform that leverages Generative AI to predict project outcomes, assess risks, and optimize delivery timelines. It moves beyond simple task tracking to provide actionable intelligence for project managers. 
 
 ## 🚀 Key Features
 
@@ -76,3 +76,4 @@ This project is configured for seamless deployment on **Vercel**.
 4.  **Deploy.** The `vercel.json` and `server.js` are pre-configured to handle serverless function exports and CORS automatically.
 
 Live Link : https://schedra-predict-plan-deliver-client.vercel.app
+

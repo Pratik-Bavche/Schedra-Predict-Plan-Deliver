@@ -57,101 +57,103 @@ export default function DashboardPage() {
     const [loadingForecast, setLoadingForecast] = useState(false)
     const [loadingRisk, setLoadingRisk] = useState(false)
     const [selectedMetric, setSelectedMetric] = useState(null)
+    const [selectedProjectId, setSelectedProjectId] = useState("all")
     const [ganttFilter, setGanttFilter] = useState("all")
 
     useEffect(() => {
-        const fetchData = async () => {
+        const fetchAllProjects = async () => {
             try {
                 const response = await api.get("/projects")
                 const projects = Array.isArray(response) ? response : [];
-
-                // 1. Basic Stats & Local Aggregations
-                let budget = 0;
-                let resources = 0;
-                let riskCount = 0;
-                let delay = 0;
-                const now = new Date();
-                const regionMap = {};
-
-                projects.forEach(p => {
-                    try {
-                        budget += (Number(p.budget) || 0);
-                        resources += (parseInt(p.teamSize) || 0);
-                        if (p.riskLevel === 'High' || p.riskLevel === 'Critical') riskCount++;
-
-                        if (p.dueDate) {
-                            const due = new Date(p.dueDate);
-                            if (!isNaN(due.getTime()) && p.status !== 'Completed' && now > due) {
-                                const diffDays = Math.ceil(Math.abs(now - due) / (1000 * 60 * 60 * 24));
-                                delay += diffDays;
-                            }
-                        }
-
-                        // Regional Risk Aggregation
-                        const region = p.region || p.type || "General";
-                        if (!regionMap[region]) regionMap[region] = { count: 0, scoreSum: 0 };
-                        let score = p.riskLevel === 'Critical' ? 95 : p.riskLevel === 'High' ? 85 : p.riskLevel === 'Medium' ? 55 : 20;
-                        regionMap[region].count++;
-                        regionMap[region].scoreSum += score;
-                    } catch (err) { console.warn("Skipping malformed project data", p); }
-                });
-
-                // Notifications Logic
-                const recencyLimitDays = 7;
-                const lastCleared = localStorage.getItem('notificationLastCleared');
-                const lastClearedDate = lastCleared ? new Date(parseInt(lastCleared)) : new Date(0);
-                const activeNotifications = [];
-
-                projects.forEach(p => {
-                    const timeline = generateProjectTimeline(p);
-                    const status = calculateCurrentPhase(p);
-                    if (status === 'Completed' && p.dueDate) {
-                        const end = new Date(p.dueDate);
-                        const diff = (now - end) / (1000 * 60 * 60 * 24);
-                        if (diff >= 0 && diff <= recencyLimitDays && end > lastClearedDate) {
-                            activeNotifications.push({ ...p, status: 'Completed', phaseName: 'Completed', eventDate: end });
-                        }
-                    } else {
-                        const currentPhaseObj = timeline.find(t => now >= new Date(t.start) && now <= new Date(t.end));
-                        if (currentPhaseObj) {
-                            const startDate = new Date(currentPhaseObj.start);
-                            const diff = (now - startDate) / (1000 * 60 * 60 * 24);
-                            if (diff >= 0 && diff <= recencyLimitDays && startDate > lastClearedDate) {
-                                activeNotifications.push({ ...p, status: currentPhaseObj.name, phaseName: currentPhaseObj.name, eventDate: startDate });
-                            }
-                        }
-                    }
-                });
-
-                setStats({
-                    totalBudget: budget,
-                    totalProjects: projects.length,
-                    delayDays: delay,
-                    totalResources: resources,
-                    highRiskCount: riskCount,
-                    forecastData: [], // Will be filled by AI
-                    riskData: [],     // Will be filled by AI
-                    ganttTasks: [],
-                    allProjects: projects,
-                    notifications: activeNotifications
-                });
-
+                setStats(prev => ({ ...prev, allProjects: projects }));
                 setLoading(false);
-
-                // 2. Fetch Aggregated AI Insights
-                if (projects.length > 0) {
-                    fetchAIForecast(projects);
-                    fetchAIRisk(projects);
-                }
-
             } catch (error) {
-                toast.error("Failed to load dashboard data");
-                console.error(error);
+                toast.error("Failed to load projects");
                 setLoading(false);
             }
         }
-        fetchData()
+        fetchAllProjects()
     }, [])
+
+    useEffect(() => {
+        if (stats.allProjects.length === 0) return;
+
+        const updateDashboardMetrics = async () => {
+            const projects = selectedProjectId === "all"
+                ? stats.allProjects
+                : stats.allProjects.filter(p => p._id === selectedProjectId);
+
+            // 1. Basic Stats & Local Aggregations
+            let budget = 0;
+            let resources = 0;
+            let riskCount = 0;
+            let delay = 0;
+            const now = new Date();
+
+            projects.forEach(p => {
+                try {
+                    budget += (Number(p.budget) || 0);
+                    resources += (parseInt(p.teamSize) || 0);
+                    if (p.riskLevel === 'High' || p.riskLevel === 'Critical') riskCount++;
+
+                    if (p.dueDate) {
+                        const due = new Date(p.dueDate);
+                        if (!isNaN(due.getTime()) && p.status !== 'Completed' && now > due) {
+                            const diffDays = Math.ceil(Math.abs(now - due) / (1000 * 60 * 60 * 24));
+                            delay += diffDays;
+                        }
+                    }
+                } catch (err) { console.warn("Skipping malformed project data", p); }
+            });
+
+            // Notifications Logic (Keep for all projects for now, or filter if desired)
+            const recencyLimitDays = 7;
+            const lastCleared = localStorage.getItem('notificationLastCleared');
+            const lastClearedDate = lastCleared ? new Date(parseInt(lastCleared)) : new Date(0);
+            const activeNotifications = [];
+
+            // We filter notifications based on the selected project too for consistency
+            projects.forEach(p => {
+                const timeline = generateProjectTimeline(p);
+                const status = calculateCurrentPhase(p);
+                if (status === 'Completed' && p.dueDate) {
+                    const end = new Date(p.dueDate);
+                    const diff = (now - end) / (1000 * 60 * 60 * 24);
+                    if (diff >= 0 && diff <= recencyLimitDays && end > lastClearedDate) {
+                        activeNotifications.push({ ...p, status: 'Completed', phaseName: 'Completed', eventDate: end });
+                    }
+                } else {
+                    const currentPhaseObj = timeline.find(t => now >= new Date(t.start) && now <= new Date(t.end));
+                    if (currentPhaseObj) {
+                        const startDate = new Date(currentPhaseObj.start);
+                        const diff = (now - startDate) / (1000 * 60 * 60 * 24);
+                        if (diff >= 0 && diff <= recencyLimitDays && startDate > lastClearedDate) {
+                            activeNotifications.push({ ...p, status: currentPhaseObj.name, phaseName: currentPhaseObj.name, eventDate: startDate });
+                        }
+                    }
+                }
+            });
+
+            setStats(prev => ({
+                ...prev,
+                totalBudget: budget,
+                totalProjects: selectedProjectId === "all" ? stats.allProjects.length : 1,
+                delayDays: delay,
+                totalResources: resources,
+                highRiskCount: riskCount,
+                notifications: activeNotifications
+            }));
+
+            // Sync Gantt filter
+            setGanttFilter(selectedProjectId);
+
+            // Fetch AI Data
+            fetchAIForecast(projects);
+            fetchAIRisk(projects);
+        }
+
+        updateDashboardMetrics();
+    }, [selectedProjectId, stats.allProjects])
 
     const fetchAIForecast = async (projects) => {
         setLoadingForecast(true);
@@ -347,6 +349,19 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between space-y-2">
                 <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
                 <div className="flex items-center space-x-2">
+                    <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
+                        <SelectTrigger className="w-[200px]">
+                            <SelectValue placeholder="All Projects" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All Projects</SelectItem>
+                            {stats.allProjects.map((project) => (
+                                <SelectItem key={project._id} value={project._id}>
+                                    {project.name}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <Button variant="outline" size="icon" className="relative">
@@ -416,7 +431,9 @@ export default function DashboardPage() {
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">${stats.totalBudget.toLocaleString()}</div>
-                        <p className="text-xs text-muted-foreground">Across {stats.totalProjects} active projects</p>
+                        <p className="text-xs text-muted-foreground">
+                            {selectedProjectId === "all" ? `Across ${stats.totalProjects} active projects` : "Current project budget"}
+                        </p>
                     </CardContent>
                 </Card>
                 <Card

@@ -28,7 +28,9 @@ const generateFrontendFallback = (type, projectData) => {
         return x - Math.floor(x);
     };
 
-    const budget = parseFloat(projectData.budget) || 10000;
+
+    // Ensure budget is at least 150k for realism as per user request
+    const budget = Math.max(parseFloat(projectData.budget) || 150000, 150000);
 
     if (type === "cost_forecast") {
         const variance = 1 + (pseudoRandom(1) * 0.4 - 0.2); // +/- 20% variance
@@ -78,6 +80,37 @@ const generateFrontendFallback = (type, projectData) => {
         };
     }
     return {};
+};
+
+const CustomTooltip = ({ active, payload, label }) => {
+    if (active && payload && payload.length) {
+        const actual = payload.find(p => p.dataKey === "Actual")?.value || 0;
+        const predicted = payload.find(p => p.dataKey === "Predicted")?.value || 0;
+        const difference = actual - predicted;
+        const isLoss = actual > predicted;
+        const amount = Math.abs(difference);
+
+        return (
+            <div className="bg-background p-4 border rounded-lg shadow-xl ring-1 ring-border">
+                <p className="font-bold text-base mb-2 border-b pb-1">{label}</p>
+                <div className="space-y-1">
+                    <p className="text-sm flex justify-between gap-4">
+                        <span className="text-muted-foreground font-medium">Actual Spend:</span>
+                        <span className="font-bold text-primary">${actual.toLocaleString()}</span>
+                    </p>
+                    <p className="text-sm flex justify-between gap-4">
+                        <span className="text-muted-foreground font-medium">AI Forecast:</span>
+                        <span className="font-bold text-orange-500">${predicted.toLocaleString()}</span>
+                    </p>
+                </div>
+                <div className={`mt-3 pt-2 border-t flex justify-between items-center gap-4 ${isLoss ? 'text-red-500' : 'text-green-600'}`}>
+                    <span className="text-xs font-black uppercase tracking-wider">{isLoss ? 'Projected Loss' : 'Projected Profit'}</span>
+                    <span className="text-lg font-black">${amount.toLocaleString()}</span>
+                </div>
+            </div>
+        );
+    }
+    return null;
 };
 
 export default function AnalyticsPage() {
@@ -326,8 +359,8 @@ export default function AnalyticsPage() {
                                     <ComposedChart data={costData.forecastData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                                         <CartesianGrid strokeDasharray="3 3" />
                                         <XAxis dataKey="name" />
-                                        <YAxis />
-                                        <RechartsTooltip />
+                                        <YAxis tickFormatter={(val) => `$${(val / 1000)}k`} />
+                                        <RechartsTooltip content={<CustomTooltip />} />
                                         <Legend />
                                         <Bar dataKey="Actual" fill="#8884d8" barSize={20} />
                                         <Line type="monotone" dataKey="Predicted" stroke="#ff7300" />

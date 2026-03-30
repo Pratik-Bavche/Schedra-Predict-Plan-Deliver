@@ -174,7 +174,7 @@ JSON format:
 const generateFallbackData = (type, projectData) => {
   if (type === "cost_forecast" || type === "dashboard_cost_forecast" || type === "project_cost_forecast") {
     const pd = Array.isArray(projectData) ? projectData[0] : projectData;
-    const budget = Number(pd?.budget) || 50000;
+    const budget = Math.max(Number(pd?.budget) || 150000, 150000);
 
     return {
       forecastData: [

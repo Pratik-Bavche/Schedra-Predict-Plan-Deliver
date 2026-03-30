@@ -3,13 +3,46 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Loader2 } from "lucide-react"
 
 const defaultData = [
-    { name: "Jan", Actual: 4000, Predicted: 4200 },
-    { name: "Feb", Actual: 3000, Predicted: 3200 },
-    { name: "Mar", Actual: 2000, Predicted: 2500 },
-    { name: "Apr", Actual: 2780, Predicted: 2900 },
-    { name: "May", Actual: 1890, Predicted: 2100 },
-    { name: "Jun", Actual: 2390, Predicted: 2500 },
+    { name: "Jan", Actual: 18500, Predicted: 17200 },
+    { name: "Feb", Actual: 21000, Predicted: 22500 },
+    { name: "Mar", Actual: 15600, Predicted: 15000 },
+    { name: "Apr", Actual: 27800, Predicted: 26900 },
+    { name: "May", Actual: 14900, Predicted: 16100 },
+    { name: "Jun", Actual: 23900, Predicted: 24500 },
 ]
+
+const CustomTooltip = ({ active, payload, label }) => {
+    if (active && payload && payload.length) {
+        const actual = payload.find(p => p.dataKey === "Actual")?.value || 0;
+        const predicted = payload.find(p => p.dataKey === "Predicted")?.value || 0;
+        const difference = actual - predicted;
+        const isLoss = actual > predicted;
+        const amount = Math.abs(difference);
+
+        return (
+            <div className="bg-background p-4 border rounded-lg shadow-xl ring-1 ring-border min-w-[200px]">
+                <p className="font-bold text-base mb-2 border-b pb-1">{label}</p>
+                <div className="space-y-1.5">
+                    <p className="text-sm flex justify-between gap-4">
+                        <span className="text-muted-foreground font-medium">Actual Spend:</span>
+                        <span className="font-bold text-primary">${actual.toLocaleString()}</span>
+                    </p>
+                    <p className="text-sm flex justify-between gap-4">
+                        <span className="text-muted-foreground font-medium">AI Forecast:</span>
+                        <span className="font-bold text-destructive">${predicted.toLocaleString()}</span>
+                    </p>
+                </div>
+                <div className={`mt-3 pt-2 border-t flex justify-between items-center gap-4 ${isLoss ? 'text-red-500' : 'text-green-600'}`}>
+                    <span className="text-[10px] font-black uppercase tracking-wider leading-none">
+                        {isLoss ? 'Over Budget (Loss)' : 'Under Budget (Profit)'}
+                    </span>
+                    <span className="text-lg font-black leading-none">${amount.toLocaleString()}</span>
+                </div>
+            </div>
+        );
+    }
+    return null;
+};
 
 export function CostOverviewChart({ data, loading }) {
     const chartData = (data && data.length > 0) ? data : defaultData;
@@ -29,7 +62,7 @@ export function CostOverviewChart({ data, loading }) {
                             <p className="text-sm">Generating AI Forecast...</p>
                         </div>
                     ) : (
-                        <ResponsiveContainer width="99%" height="100%">
+                        <ResponsiveContainer width="100%" height="100%">
                             <ComposedChart data={chartData} margin={{ top: 10, right: 30, left: 20, bottom: 0 }}>
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
                                 <XAxis
@@ -44,11 +77,11 @@ export function CostOverviewChart({ data, loading }) {
                                     fontSize={12}
                                     tickLine={false}
                                     axisLine={false}
-                                    tickFormatter={(value) => `$${value}`}
+                                    tickFormatter={(value) => `$${value / 1000}k`}
                                 />
                                 <Tooltip
                                     cursor={{ fill: 'transparent' }}
-                                    contentStyle={{ borderRadius: '6px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                                    content={<CustomTooltip />}
                                 />
                                 <Legend wrapperStyle={{ paddingTop: '20px' }} />
                                 <Bar dataKey="Actual" name="Actual Spend" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} barSize={40} />

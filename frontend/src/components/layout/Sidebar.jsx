@@ -1,4 +1,5 @@
-import { Home, LineChart, PieChart, Settings, Menu, Package2 } from "lucide-react"
+import { Home, LineChart, PieChart, Settings, Menu, Package2, Sun, Moon } from "lucide-react"
+import { ModeToggle } from "@/components/ModeToggle"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -69,6 +70,9 @@ export function Sidebar({ className }) {
                         </div>
                     </div>
                 </div>
+                <div className="mt-auto px-4 py-4 border-t">
+                    <ModeToggle showLabel={true} />
+                </div>
             </div>
 
             {/* Mobile Sidebar */}
@@ -112,6 +116,9 @@ export function Sidebar({ className }) {
                         <LineChart className="h-5 w-5 text-primary-foreground" />
                     </div>
                     <span className="font-bold text-lg">Schedra</span>
+                </div>
+                <div className="ml-auto">
+                    <ModeToggle />
                 </div>
             </div>
         </TooltipProvider>

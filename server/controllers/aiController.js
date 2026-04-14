@@ -16,19 +16,31 @@ const getKeys = () =>
 
 let currentGlobalKeyIndex = 0;
 
+// Helper for last 6 months
+const getLast6MonthsLabel = () => {
+    const list = [];
+    for (let i = 5; i >= 0; i--) {
+        const d = new Date();
+        d.setMonth(d.getMonth() - i);
+        list.push(d.toLocaleString('default', { month: 'short', year: 'numeric' }));
+    }
+    return list;
+};
+
 export const getAIAnalytics = async (req, res) => {
-  const timestamp = new Date().toLocaleTimeString();
-  const apiKeys = getKeys();
+    const timestamp = new Date().toLocaleTimeString();
+    const apiKeys = getKeys();
 
-  console.log(`[${timestamp}] --- NEW AI REQUEST ---`);
-  console.log(`[${timestamp}] Active Keys: ${apiKeys.length}`);
+    console.log(`[${timestamp}] --- NEW AI REQUEST ---`);
+    console.log(`[${timestamp}] Active Keys: ${apiKeys.length}`);
 
-  if (apiKeys.length === 0) {
-    return res.status(500).json({ message: "Missing GEMINI_API_KEY" });
-  }
+    if (apiKeys.length === 0) {
+        return res.status(500).json({ message: "Missing GEMINI_API_KEY" });
+    }
 
-  const { type, projectData } = req.body;
-  let prompt = "";
+    const { type, projectData } = req.body;
+    let prompt = "";
+    const windowMonths = getLast6MonthsLabel();
 
   // ---------------- PROMPT BUILDER ----------------
   // Support both single-project and dashboard-level requests
@@ -38,21 +50,23 @@ export const getAIAnalytics = async (req, res) => {
     prompt = `
 You are an AI project manager.
 Analyze the project below and return ONLY valid JSON.
+IMPORTANT: For the forecastData, use the following month names as 'name': ${windowMonths.join(", ")}.
 
 Project:
 Name: ${pd.name}
 Budget: ${pd.budget}
 Start Date: ${pd.startDate}
 Description: ${pd.description || "N/A"}
+Telemetry (Actual logged data): ${pd.telemetry ? JSON.stringify(pd.telemetry) : "No actual data logged yet"}
 
 JSON format:
 {
   "forecastData": [
-    { "name": "Month 1", "Actual": 1000, "Predicted": 1200 }
+    { "name": "${windowMonths[0]}", "Actual": 1000, "Predicted": 1200 }
   ],
   "finalCost": 120000,
   "overrunPercentage": 10,
-  "insight": "One sentence insight"
+  "insight": "One sentence insight. If telemetry was provided, base your 'Actual' values ON THE TELEMETRY for those months."
 }
 `;
   } else if (type === "dashboard_risk_assessment" || type === "project_risk_assessment") {
@@ -176,19 +190,33 @@ const generateFallbackData = (type, projectData) => {
     const pd = Array.isArray(projectData) ? projectData[0] : projectData;
     const budget = Math.max(Number(pd?.budget) || 150000, 150000);
 
+    // If telemetry exists, map it to forecastData
+    if (pd?.telemetry && pd.telemetry.length > 0) {
+      const telemetryData = pd.telemetry.map(t => ({
+        name: t.month,
+        Actual: t.actualSpend,
+        Predicted: budget * 0.12 // Still predict something
+      }));
+
+      // If we have telemetry, use it, then maybe simulated future months
+      return {
+        forecastData: telemetryData,
+        finalCost: budget * 1.05,
+        overrunPercentage: 5,
+        insight: "Reporting based on user-logged telemetry data."
+      };
+    }
+
+    const windowMonths = getLast6MonthsLabel();
     return {
-      forecastData: [
-        { name: "Month 1", Actual: budget * 0.1, Predicted: budget * 0.12 },
-        { name: "Month 2", Actual: budget * 0.25, Predicted: budget * 0.24 },
-        { name: "Month 3", Actual: budget * 0.4, Predicted: budget * 0.36 },
-        { name: "Month 4", Actual: budget * 0.55, Predicted: budget * 0.48 },
-        { name: "Month 5", Actual: budget * 0.7, Predicted: budget * 0.6 },
-        { name: "Month 6", Actual: budget * 0.85, Predicted: budget * 0.72 }
-      ],
-      finalCost: budget * 1.08,
-      overrunPercentage: 8,
-      insight:
-        "Spending is slightly above projection but within acceptable variance."
+        forecastData: windowMonths.map((m, i) => ({
+            name: m,
+            Actual: budget * (0.1 + (i * 0.12)),
+            Predicted: budget * (0.12 + (i * 0.1))
+        })),
+        finalCost: budget * 1.08,
+        overrunPercentage: 8,
+        insight: "Spending is slightly above projection but within acceptable variance."
     };
   }
 

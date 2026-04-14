@@ -98,6 +98,13 @@ const projectSchema = mongoose.Schema(
 
         scheduleUrl: String,
         boqUrl: String,
+
+        telemetry: [{
+            month: String, // format "MMM YYYY" e.g. "Jan 2024"
+            actualSpend: Number,
+            activeResources: Number,
+            timestamp: { type: Date, default: Date.now }
+        }]
     },
     {
         timestamps: true,

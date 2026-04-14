@@ -6,8 +6,16 @@ const BASE_URL = import.meta.env.DEV
 export const api = {
     get: async (endpoint) => {
         const response = await fetch(`${BASE_URL}${endpoint}`);
-        if (!response.ok) throw new Error('Network response was not ok');
-        return await response.json();
+        const contentType = response.headers.get("content-type");
+
+        if (!response.ok) {
+            throw new Error(`Server Error (${response.status}): Failed to fetch data. Check if backend is running.`);
+        }
+
+        if (contentType && contentType.includes("application/json")) {
+            return await response.json();
+        }
+        return null;
     },
 
     post: async (endpoint, data) => {
@@ -18,11 +26,23 @@ export const api = {
             },
             body: JSON.stringify(data),
         });
+
+        const contentType = response.headers.get("content-type");
+
         if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || 'Network response was not ok');
+            if (contentType && contentType.includes("application/json")) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Network response was not ok');
+            } else {
+                // If it's HTML/text, it's likely a 404/500 from the server that isn't JSON
+                throw new Error(`Server Error (${response.status}): The server returned an invalid response. Please check if the backend is running and updated.`);
+            }
         }
-        return await response.json();
+
+        if (contentType && contentType.includes("application/json")) {
+            return await response.json();
+        }
+        return null;
     },
 
     put: async (endpoint, data) => {
@@ -33,21 +53,43 @@ export const api = {
             },
             body: JSON.stringify(data),
         });
+
+        const contentType = response.headers.get("content-type");
+
         if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || 'Network response was not ok');
+            if (contentType && contentType.includes("application/json")) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Network response was not ok');
+            } else {
+                throw new Error(`Server Error (${response.status}): The server returned an invalid response.`);
+            }
         }
-        return await response.json();
+
+        if (contentType && contentType.includes("application/json")) {
+            return await response.json();
+        }
+        return null;
     },
 
     delete: async (endpoint) => {
         const response = await fetch(`${BASE_URL}${endpoint}`, {
             method: 'DELETE',
         });
+
+        const contentType = response.headers.get("content-type");
+
         if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || 'Network response was not ok');
+            if (contentType && contentType.includes("application/json")) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Network response was not ok');
+            } else {
+                throw new Error(`Server Error (${response.status}): Failed to delete.`);
+            }
         }
-        return await response.json();
+
+        if (contentType && contentType.includes("application/json")) {
+            return await response.json();
+        }
+        return null;
     }
 };

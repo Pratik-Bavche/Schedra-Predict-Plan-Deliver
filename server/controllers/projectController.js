@@ -163,4 +163,64 @@ const updateProject = asyncHandler(async (req, res) => {
     }
 });
 
-export { getProjects, getProjectById, createProject, deleteProject, updateProject };
+// @desc    Update project telemetry
+// @route   POST /api/projects/:id/telemetry
+// @access  Public
+const updateProjectTelemetry = asyncHandler(async (req, res) => {
+    const { month, actualSpend, activeResources } = req.body;
+    const project = await Project.findById(req.params.id);
+
+    if (project) {
+        // Find if month already exists
+        const index = project.telemetry.findIndex(t => t.month === month);
+        
+        if (index !== -1) {
+            // Update existing record
+            project.telemetry[index].actualSpend = actualSpend;
+            project.telemetry[index].activeResources = activeResources;
+        } else {
+            // Add new record
+            project.telemetry.push({ month, actualSpend, activeResources });
+        }
+
+        const updatedProject = await project.save();
+        res.json(updatedProject);
+    } else {
+        res.status(404);
+        throw new Error("Project not found");
+    }
+});
+
+// @desc    Update project telemetry bulk
+// @route   POST /api/projects/:id/telemetry/bulk
+// @access  Public
+const updateProjectTelemetryBulk = asyncHandler(async (req, res) => {
+    const { telemetry } = req.body; // Expects array of { month, actualSpend, activeResources }
+    const project = await Project.findById(req.params.id);
+
+    if (project) {
+        if (!Array.isArray(telemetry)) {
+            res.status(400);
+            throw new Error("Telemetry data must be an array");
+        }
+
+        // Overwrite or Merge? Let's merge/update based on month
+        telemetry.forEach(newEntry => {
+            const index = project.telemetry.findIndex(t => t.month === newEntry.month);
+            if (index !== -1) {
+                project.telemetry[index].actualSpend = newEntry.actualSpend;
+                project.telemetry[index].activeResources = newEntry.activeResources;
+            } else {
+                project.telemetry.push(newEntry);
+            }
+        });
+
+        const updatedProject = await project.save();
+        res.json(updatedProject);
+    } else {
+        res.status(404);
+        throw new Error("Project not found");
+    }
+});
+
+export { getProjects, getProjectById, createProject, deleteProject, updateProject, updateProjectTelemetry, updateProjectTelemetryBulk };

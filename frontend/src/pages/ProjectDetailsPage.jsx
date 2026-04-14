@@ -5,11 +5,13 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
-import { ArrowLeft, Calendar, DollarSign, Activity } from "lucide-react"
+import { ArrowLeft, Calendar, DollarSign, Activity, Loader2, ListOrdered } from "lucide-react"
 import { toast } from "sonner"
 import { CostOverviewChart } from "@/components/dashboard/CostOverviewChart"
 import { RiskHeatmap } from "@/components/dashboard/RiskHeatmap"
 import { ProjectGantt } from "@/components/dashboard/ProjectGantt"
+import { ProjectTelemetryDialog } from "@/components/projects/ProjectTelemetryDialog"
+import { ProjectTelemetryList } from "@/components/projects/ProjectTelemetryList"
 
 import { generateProjectForecast, generateProjectTimeline, calculateOverallProgress, calculateCurrentPhase } from "@/lib/insightGenerator"
 
@@ -19,28 +21,31 @@ export default function ProjectDetailsPage() {
     const [project, setProject] = useState(null)
     const [loading, setLoading] = useState(true)
     const [aiLoading, setAiLoading] = useState(false)
+    const [telemetryOpen, setTelemetryOpen] = useState(false)
+    const [listOpen, setListOpen] = useState(false)
     const [aiStats, setAiStats] = useState({
         forecast: [],
         risks: []
     })
 
-    useEffect(() => {
-        const fetchProject = async () => {
-            try {
-                // Fetch using internal ID
-                const data = await api.get(`/projects/${id}`)
-                setProject(data)
+    const fetchProject = async () => {
+        try {
+            // Fetch using internal ID
+            const data = await api.get(`/projects/${id}`)
+            setProject(data)
 
-                // Fetch AI Stats
-                if (data) {
-                    fetchProjectAI(data)
-                }
-            } catch {
-                toast.error("Failed to load project details")
-            } finally {
-                setLoading(false)
+            // Fetch AI Stats
+            if (data) {
+                fetchProjectAI(data)
             }
+        } catch {
+            toast.error("Failed to load project details")
+        } finally {
+            setLoading(false)
         }
+    }
+
+    useEffect(() => {
         fetchProject()
     }, [id])
 
@@ -58,7 +63,14 @@ export default function ProjectDetailsPage() {
                 risks: riskRes.riskData || []
             });
 
-            if (forecastRes.insight) toast.info("AI Insight", { description: forecastRes.insight });
+            // Prevent duplicate toasts using a session-based check or simpler logic
+            if (forecastRes.insight) {
+                const lastInsight = localStorage.getItem(`lastInsight_${projectData._id}`);
+                if (lastInsight !== forecastRes.insight) {
+                    toast.info("AI Insight", { description: forecastRes.insight });
+                    localStorage.setItem(`lastInsight_${projectData._id}`, forecastRes.insight);
+                }
+            }
 
         } catch (error) {
             console.error("AI Project Analysis Failed", error)
@@ -69,7 +81,7 @@ export default function ProjectDetailsPage() {
         }
     }
 
-    if (loading) return <div className="p-8">Loading...</div>
+    if (loading) return <div className="p-8 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" /></div>
     if (!project) return <div className="p-8">Project not found</div>
 
     const forecastData = generateProjectForecast(project);
@@ -81,9 +93,19 @@ export default function ProjectDetailsPage() {
 
     return (
         <div className="space-y-6">
-            <Button variant="ghost" onClick={() => navigate(-1)} className="mb-4">
-                <ArrowLeft className="mr-2 h-4 w-4" /> Back to Projects
-            </Button>
+            <div className="flex items-center justify-between gap-4">
+                <Button variant="ghost" onClick={() => navigate(-1)}>
+                    <ArrowLeft className="mr-2 h-4 w-4" /> Back to Projects
+                </Button>
+                <div className="flex gap-2">
+                    <Button onClick={() => setListOpen(true)} variant="outline">
+                        <ListOrdered className="mr-2 h-4 w-4" /> Monthly List View
+                    </Button>
+                    <Button onClick={() => setTelemetryOpen(true)} variant="outline">
+                        <Activity className="mr-2 h-4 w-4" /> Log Single Data Point
+                    </Button>
+                </div>
+            </div>
 
             <div className="flex items-start justify-between">
                 <div>
@@ -157,6 +179,20 @@ export default function ProjectDetailsPage() {
             <div className="grid grid-cols-1 md:grid-cols-7 gap-6">
                 <ProjectGantt tasks={timelineTasks} />
             </div>
+
+            <ProjectTelemetryDialog
+                open={telemetryOpen}
+                onOpenChange={setTelemetryOpen}
+                project={project}
+                onUpdate={fetchProject}
+            />
+
+            <ProjectTelemetryList
+                open={listOpen}
+                onOpenChange={setListOpen}
+                project={project}
+                onUpdate={fetchProject}
+            />
         </div>
     )
 }

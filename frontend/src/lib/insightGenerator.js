@@ -1,23 +1,33 @@
 export const generateProjectForecast = (project) => {
     if (!project) return [];
 
-    const budget = project.budget || 100000;
-    const riskFactor = project.riskLevel === 'High' ? 0.2 : project.riskLevel === 'Medium' ? 0.1 : 0.05;
+    const budget = Number(project.budget) || 100000;
+    const monthlyBenchmark = Math.round(budget / 12);
+    const end = new Date(project.dueDate);
+    
+    // Generate the last 6 months as the focus window
+    let windowMonths = [];
+    for (let i = 5; i >= 0; i--) {
+        const d = new Date();
+        d.setMonth(d.getMonth() - i);
+        
+        // Trimming Logic: If project is completed/ended, don't show future months
+        if (d > end && (project.status === "Completed" || calculateCurrentPhase(project) === "Completed")) continue;
+        
+        windowMonths.push(d.toLocaleString('default', { month: 'short', year: 'numeric' }));
+    }
 
-    // Generate data for last 6 months relative to now
-    return Array.from({ length: 6 }).map((_, i) => {
-        const date = new Date();
-        date.setMonth(date.getMonth() - (5 - i));
-        const monthName = date.toLocaleString('default', { month: 'short' });
-
-        // Simulate spend curve
-        const baseSpend = (budget / 12); // Average monthly
-        const randomVar = (Math.random() - 0.5) * riskFactor * baseSpend;
-
+    // Map telemetry and benchmarks to this 6-month window
+    return windowMonths.map(monthLabel => {
+        // Find actual data if exists in telemetry
+        const telemetryEntry = project.telemetry?.find(t => t.month === monthLabel);
+        
         return {
-            month: monthName,
-            actual: Math.round(baseSpend + randomVar),
-            forecast: Math.round(baseSpend * (1 + (i * 0.02))) // Slight increase trend
+            name: monthLabel, // Use 'name' to match Chart XAxis
+            Actual: telemetryEntry ? telemetryEntry.actualSpend : 0, 
+            Predicted: monthlyBenchmark, // The original/actual budget benchmark
+            isActual: !!telemetryEntry,
+            isSimulated: !telemetryEntry
         };
     });
 };
@@ -26,8 +36,12 @@ export const generateProjectTimeline = (project) => {
     if (!project) return [];
 
     const start = new Date(project.startDate || new Date());
+    start.setHours(0, 0, 0, 0); // Normalize to start of day
+    
     // Default to 60 days if no due date, or ensure end > start
     let end = new Date(project.dueDate || new Date(start.getTime() + 60 * 24 * 60 * 60 * 1000));
+    end.setHours(23, 59, 59, 999); // Normalize to end of day
+    
     if (end <= start) end = new Date(start.getTime() + 60 * 24 * 60 * 60 * 1000);
 
     // Ensure unique ID for Gantt tasks to prevent duplicates crashing the component
@@ -78,6 +92,15 @@ export const generateProjectTimeline = (project) => {
 
 export function generateResourceData(project, timeRange = 'all') {
     if (!project) return null;
+
+    // IF TELEMETRY EXISTS, USE THE LAST LOGGED DATA
+    if (project.telemetry && project.telemetry.length > 0) {
+        const lastLog = project.telemetry[project.telemetry.length - 1];
+        return [
+            { site: "Active Personnel", manpower: lastLog.activeResources },
+            { site: "HQ Support", manpower: 15 },
+        ];
+    }
 
     // Seed random based on project ID length to keep it deterministic per project
     const seed = project._id ? project._id.length : 10;
@@ -141,13 +164,18 @@ export function calculateOverallProgress(project) {
 
 export function calculateCurrentPhase(project) {
     if (!project) return "Not Started";
+    
+    const now = new Date();
+    const end = new Date(project.dueDate);
     const progress = calculateOverallProgress(project); // 0-100
     const p = progress / 100;
 
-    // Matches phases defined in generateProjectTimeline (4 Equal Sectors)
-    if (p <= 0) return "Not Started";
-    if (p >= 1) return "Completed";
+    // Fix: If deployment is completed (p >= 1 or past end), show Completed
+    if (p >= 1 || now > end) {
+        return "Completed";
+    }
 
+    if (p <= 0) return "Not Started";
     if (p < 0.25) return "Planning";
     if (p < 0.50) return "Implementation";
     if (p < 0.75) return "Testing";

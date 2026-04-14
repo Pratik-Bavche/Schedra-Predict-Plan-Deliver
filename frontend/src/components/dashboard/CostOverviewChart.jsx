@@ -15,26 +15,32 @@ const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
         const actual = payload.find(p => p.dataKey === "Actual")?.value || 0;
         const predicted = payload.find(p => p.dataKey === "Predicted")?.value || 0;
+        const isSimulated = payload[0]?.payload?.isSimulated;
         const difference = actual - predicted;
         const isLoss = actual > predicted;
         const amount = Math.abs(difference);
 
         return (
             <div className="bg-background p-4 border rounded-lg shadow-xl ring-1 ring-border min-w-[200px]">
-                <p className="font-bold text-base mb-2 border-b pb-1">{label}</p>
+                <div className="flex justify-between items-center mb-2 border-b pb-1">
+                    <p className="font-bold text-base">{label}</p>
+                    {isSimulated && (
+                        <span className="text-[10px] bg-yellow-100 text-yellow-800 px-1.5 py-0.5 rounded font-bold uppercase tracking-tighter">Simulated</span>
+                    )}
+                </div>
                 <div className="space-y-1.5">
                     <p className="text-sm flex justify-between gap-4">
-                        <span className="text-muted-foreground font-medium">Actual Spend:</span>
+                        <span className="text-foreground font-bold">Actual Spend:</span>
                         <span className="font-bold text-primary">${actual.toLocaleString()}</span>
                     </p>
                     <p className="text-sm flex justify-between gap-4">
-                        <span className="text-muted-foreground font-medium">AI Forecast:</span>
+                        <span className="text-foreground font-bold">AI Forecast:</span>
                         <span className="font-bold text-destructive">${predicted.toLocaleString()}</span>
                     </p>
                 </div>
                 <div className={`mt-3 pt-2 border-t flex justify-between items-center gap-4 ${isLoss ? 'text-red-500' : 'text-green-600'}`}>
                     <span className="text-[10px] font-black uppercase tracking-wider leading-none">
-                        {isLoss ? 'Over Budget (Loss)' : 'Under Budget (Profit)'}
+                        {isLoss ? 'Over Budget' : 'Under Budget'}
                     </span>
                     <span className="text-lg font-black leading-none">${amount.toLocaleString()}</span>
                 </div>

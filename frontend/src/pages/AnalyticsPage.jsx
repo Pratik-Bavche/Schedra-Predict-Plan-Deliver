@@ -17,8 +17,22 @@ import jsPDF from "jspdf"
 import { calculateCurrentPhase, calculateOverallProgress } from "@/lib/insightGenerator"
 
 const generateFrontendFallback = (type, projectData) => {
-    // Generate a pseudo-random seed from project name to ensure same project = same "random" data
-    // but different projects = different data
+    // IF TELEMETRY EXISTS, USE IT FOR COST FORECAST
+    if (type === "cost_forecast" && projectData.telemetry && projectData.telemetry.length > 0) {
+        return {
+            forecastData: projectData.telemetry.map(t => ({
+                name: t.month,
+                Actual: t.actualSpend,
+                Predicted: (parseFloat(projectData.budget) / 12) * 1.1,
+                isActual: true
+            })),
+            finalCost: parseFloat(projectData.budget) * 1.05,
+            overrunPercentage: 5,
+            insight: "Showing reporting based on user-logged telemetry data."
+        };
+    }
+
+    // Generate a pseudo-random seed
     let seed = 0;
     for (let i = 0; i < projectData.name.length; i++) {
         seed += projectData.name.charCodeAt(i);
@@ -28,24 +42,22 @@ const generateFrontendFallback = (type, projectData) => {
         return x - Math.floor(x);
     };
 
-
-    // Ensure budget is at least 150k for realism as per user request
     const budget = Math.max(parseFloat(projectData.budget) || 150000, 150000);
 
     if (type === "cost_forecast") {
-        const variance = 1 + (pseudoRandom(1) * 0.4 - 0.2); // +/- 20% variance
+        const variance = 1 + (pseudoRandom(1) * 0.4 - 0.2);
         return {
             forecastData: [
-                { name: "Month 1", Actual: budget * 0.1, Predicted: budget * 0.12 * variance },
-                { name: "Month 2", Actual: budget * 0.25, Predicted: budget * 0.24 * variance },
-                { name: "Month 3", Actual: budget * 0.4, Predicted: budget * 0.36 * variance },
-                { name: "Month 4", Actual: budget * 0.55, Predicted: budget * 0.48 * variance },
-                { name: "Month 5", Actual: budget * 0.7, Predicted: budget * 0.60 * variance },
-                { name: "Month 6", Actual: budget * 0.85, Predicted: budget * 0.72 * variance }
+                { name: "Month 1", Actual: budget * 0.1, Predicted: budget * 0.12 * variance, isSimulated: true },
+                { name: "Month 2", Actual: budget * 0.25, Predicted: budget * 0.24 * variance, isSimulated: true },
+                { name: "Month 3", Actual: budget * 0.4, Predicted: budget * 0.36 * variance, isSimulated: true },
+                { name: "Month 4", Actual: budget * 0.55, Predicted: budget * 0.48 * variance, isSimulated: true },
+                { name: "Month 5", Actual: budget * 0.7, Predicted: budget * 0.60 * variance, isSimulated: true },
+                { name: "Month 6", Actual: budget * 0.85, Predicted: budget * 0.72 * variance, isSimulated: true }
             ],
             finalCost: budget * (1.05 + (pseudoRandom(2) * 0.1)),
             overrunPercentage: Math.floor(5 + pseudoRandom(3) * 15),
-            insight: "Spending is slightly above projection but within acceptable variance."
+            insight: "Spending is slightly above projection but within acceptable variance (Simulated)."
         };
     } else if (type === "resource_utilization") {
         return {
@@ -86,26 +98,34 @@ const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
         const actual = payload.find(p => p.dataKey === "Actual")?.value || 0;
         const predicted = payload.find(p => p.dataKey === "Predicted")?.value || 0;
+        const isSimulated = payload[0]?.payload?.isSimulated;
         const difference = actual - predicted;
         const isLoss = actual > predicted;
         const amount = Math.abs(difference);
 
         return (
             <div className="bg-background p-4 border rounded-lg shadow-xl ring-1 ring-border">
-                <p className="font-bold text-base mb-2 border-b pb-1">{label}</p>
+                <div className="flex justify-between items-center mb-2 border-b pb-1">
+                    <p className="font-bold text-base">{label}</p>
+                    {isSimulated && (
+                        <span className="text-[10px] bg-yellow-100 text-yellow-800 px-1.5 py-0.5 rounded font-bold uppercase tracking-tighter">Simulated</span>
+                    )}
+                </div>
                 <div className="space-y-1">
                     <p className="text-sm flex justify-between gap-4">
-                        <span className="text-muted-foreground font-medium">Actual Spend:</span>
+                        <span className="text-foreground font-bold">Actual Spend:</span>
                         <span className="font-bold text-primary">${actual.toLocaleString()}</span>
                     </p>
                     <p className="text-sm flex justify-between gap-4">
-                        <span className="text-muted-foreground font-medium">AI Forecast:</span>
+                        <span className="text-foreground font-bold">AI Forecast:</span>
                         <span className="font-bold text-orange-500">${predicted.toLocaleString()}</span>
                     </p>
                 </div>
                 <div className={`mt-3 pt-2 border-t flex justify-between items-center gap-4 ${isLoss ? 'text-red-500' : 'text-green-600'}`}>
-                    <span className="text-xs font-black uppercase tracking-wider">{isLoss ? 'Projected Loss' : 'Projected Profit'}</span>
-                    <span className="text-lg font-black">${amount.toLocaleString()}</span>
+                    <span className="text-xs font-black uppercase tracking-wider leading-none">
+                        {isLoss ? 'Over Budget' : 'Under Budget'}
+                    </span>
+                    <span className="text-lg font-black leading-none">${amount.toLocaleString()}</span>
                 </div>
             </div>
         );
@@ -254,7 +274,7 @@ export default function AnalyticsPage() {
 
         // Handle completed projects logic
         // If phase is Completed (time-based) OR status is explicitly Completed
-        const isCompleted = calculatedPhase === "Completed" || (p.status && p.status.toLowerCase().trim() === "completed");
+        const isCompleted = calculatedPhase === "Completed";
 
         if (isCompleted) {
             daysRemaining = 0;
@@ -375,7 +395,7 @@ export default function AnalyticsPage() {
                                     {costData.overrunPercentage}%
                                 </div>
                                 <p className="text-muted-foreground mt-2">Predicted Overrun</p>
-                                <div className="mt-8 p-4 bg-muted rounded-lg text-sm italic">
+                                <div className="mt-8 p-4 bg-muted rounded-lg text-sm italic text-foreground font-bold">
                                     {costData.insight}
                                 </div>
                             </CardContent>
@@ -410,7 +430,7 @@ export default function AnalyticsPage() {
                                             </div>
                                         </div>
                                     ))}
-                                    <div className="mt-4 p-4 bg-blue-50/50 rounded-lg text-sm text-blue-800">
+                                    <div className="mt-4 p-4 bg-blue-50/50 rounded-lg text-sm text-blue-900 font-bold border border-blue-100">
                                         <strong>AI Insight:</strong> {timelineData.insight}
                                     </div>
                                 </div>
@@ -478,7 +498,7 @@ export default function AnalyticsPage() {
                                                 <span className="text-red-900 font-medium">{spot}</span>
                                             </div>
                                         ))}
-                                        <div className="pt-4 text-sm text-muted-foreground italic">
+                                        <div className="pt-4 text-sm text-foreground font-bold italic">
                                             Strategy: {riskData.insight}
                                         </div>
                                     </div>

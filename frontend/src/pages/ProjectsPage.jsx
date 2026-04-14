@@ -169,7 +169,7 @@ export default function ProjectsPage() {
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                     <h2 className="text-3xl font-bold tracking-tight">Projects</h2>
                     <p className="text-muted-foreground">Manage and monitor all active projects across various domains.</p>
@@ -444,7 +444,68 @@ export default function ProjectsPage() {
                 </div>
             </div>
 
-            <Card>
+            <div className="grid grid-cols-1 gap-4 md:hidden">
+                {loading ? (
+                    Array.from({ length: 3 }).map((_, i) => (
+                        <Card key={i} className="animate-pulse">
+                            <CardContent className="p-4 h-32 bg-muted/50" />
+                        </Card>
+                    ))
+                ) : projects.length === 0 ? (
+                    <div className="text-center py-10 text-muted-foreground border-2 border-dashed rounded-lg">
+                        No projects found.
+                    </div>
+                ) : (
+                    projects.map((project) => (
+                        <Card key={project.id} className="cursor-pointer" onClick={() => navigate(`/projects/${project._id}`)}>
+                            <CardContent className="p-4">
+                                <div className="flex justify-between items-start mb-2">
+                                    <div className="flex flex-col">
+                                        <span className="text-xs font-medium text-muted-foreground">{project.id}</span>
+                                        <span className="font-bold text-lg">{project.name}</span>
+                                    </div>
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                                            <Button variant="ghost" className="h-8 w-8 p-0">
+                                                <MoreHorizontal className="h-4 w-4" />
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                            <DropdownMenuItem onClick={() => navigate(`/projects/${project._id}`)}>View Details</DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => handleOpenEdit(project)}>Edit Details</DropdownMenuItem>
+                                            <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(project)}>Delete</DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                </div>
+                                <div className="flex flex-wrap gap-2 mb-4">
+                                    <Badge variant="outline">{project.type}</Badge>
+                                    <Badge variant={project.status === "Completed" ? "default" : project.status === "Delayed" ? "destructive" : "secondary"}>
+                                        {project.status}
+                                    </Badge>
+                                    <span className={cn(
+                                        "text-xs font-bold self-center",
+                                        project.risk === "Critical" ? "text-destructive" : project.risk === "High" ? "text-orange-600" : "text-green-600"
+                                    )}>
+                                        {project.risk} Risk
+                                    </span>
+                                </div>
+                                <div className="flex justify-between items-end text-sm">
+                                    <div>
+                                        <p className="text-muted-foreground text-xs uppercase font-bold tracking-wider">Manager</p>
+                                        <p className="font-medium">{project.manager || "-"}</p>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="text-muted-foreground text-xs uppercase font-bold tracking-wider">Budget</p>
+                                        <p className="font-bold text-primary">${project.budget?.toLocaleString()}</p>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    ))
+                )}
+            </div>
+
+            <Card className="hidden md:block">
                 <CardHeader>
                     <CardTitle>Active Projects</CardTitle>
                     <CardDescription>

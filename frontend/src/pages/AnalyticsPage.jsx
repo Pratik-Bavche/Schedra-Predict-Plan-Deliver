@@ -309,14 +309,14 @@ export default function AnalyticsPage() {
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                    <h2 className="text-3xl font-bold tracking-tight">AI Analytics Dashboard</h2>
+                    <h2 className="text-3xl font-bold tracking-tight">AI Analytics</h2>
                     <p className="text-muted-foreground">Real-time generative insights and predictions.</p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                     <Select value={selectedProjectId} onValueChange={handleProjectChange}>
-                        <SelectTrigger className="w-[200px]">
+                        <SelectTrigger className="w-full sm:w-[200px]">
                             <SelectValue placeholder="Select Project" />
                         </SelectTrigger>
                         <SelectContent>
@@ -328,7 +328,7 @@ export default function AnalyticsPage() {
                             ))}
                         </SelectContent>
                     </Select>
-                    <Button onClick={handleExport} variant="outline">
+                    <Button onClick={handleExport} variant="outline" className="flex-1 sm:flex-none">
                         <Download className="mr-2 h-4 w-4" /> Export
                     </Button>
                 </div>
@@ -368,8 +368,8 @@ export default function AnalyticsPage() {
 
                 {/* 2. Cost Analytics */}
                 {costData && (
-                    <div className="grid gap-6 md:grid-cols-3">
-                        <Card className="col-span-2">
+                    <div className="grid gap-6 grid-cols-1 lg:grid-cols-3">
+                        <Card className="lg:col-span-2">
                             <CardHeader>
                                 <CardTitle>Cost Analytics (Est. vs Actual)</CardTitle>
                                 <CardDescription>AI Forecasted Final Cost: ${costData.finalCost.toLocaleString()}</CardDescription>
@@ -442,7 +442,7 @@ export default function AnalyticsPage() {
                 {/* 4. Risk & Alerts */}
                 {
                     riskData && (
-                        <div className="grid gap-6 md:grid-cols-2">
+                        <div className="grid gap-6 grid-cols-1 lg:grid-cols-2">
                             <Card>
                                 <CardHeader>
                                     <CardTitle>AI Risk Score</CardTitle>

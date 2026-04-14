@@ -77,10 +77,10 @@ export function AIChatbot() {
 
             {/* Chat Window */}
             <div className={cn(
-                "fixed bottom-6 right-6 z-50 transition-all duration-300 ease-in-out origin-bottom-right",
+                "fixed bottom-0 right-0 sm:bottom-6 sm:right-6 z-50 transition-all duration-300 ease-in-out origin-bottom-right",
                 isOpen ? "scale-100 opacity-100" : "scale-95 opacity-0 pointer-events-none"
             )}>
-                <Card className="w-[350px] sm:w-[400px] h-[500px] flex flex-col shadow-2xl border-primary/20">
+                <Card className="w-screen sm:w-[400px] h-[100dvh] sm:h-[500px] flex flex-col shadow-2xl border-primary/20 sm:rounded-lg rounded-none pb-safe">
                     <CardHeader className="flex flex-row items-center justify-between p-4 bg-primary text-primary-foreground rounded-t-lg">
                         <div className="flex items-center gap-2">
                             <Bot className="h-5 w-5" />

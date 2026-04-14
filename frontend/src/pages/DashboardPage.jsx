@@ -346,9 +346,9 @@ export default function DashboardPage() {
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between space-y-2">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between space-y-2 sm:space-y-0">
                 <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-2 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
                     <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
                         <SelectTrigger className="w-[200px]">
                             <SelectValue placeholder="All Projects" />

@@ -104,12 +104,12 @@ export default function SettingsPage() {
                         </Button>
                     </div>
 
-                    <nav className="flex flex-col space-y-1">
+                    <nav className="flex flex-row lg:flex-col overflow-x-auto lg:overflow-visible pb-2 lg:pb-0 space-x-2 lg:space-x-0 lg:space-y-1 scrollbar-hide">
                         {menuItems.map((item) => (
                             <Button
                                 key={item.id}
                                 variant={activeTab === item.id ? "secondary" : "ghost"}
-                                className="justify-start"
+                                className="justify-start whitespace-nowrap lg:whitespace-normal shrink-0"
                                 onClick={() => setActiveTab(item.id)}
                             >
                                 <item.icon className="mr-2 h-4 w-4" />
@@ -187,13 +187,13 @@ export default function SettingsPage() {
                                 <CardContent className="space-y-4">
                                     <div className="grid grid-cols-1 gap-4">
                                         {users.map((user) => (
-                                            <div key={user.id} className="flex items-center justify-between p-4 border rounded-lg">
-                                                <div>
-                                                    <p className="font-medium">{user.name}</p>
-                                                    <p className="text-sm text-muted-foreground">{user.email}</p>
+                                            <div key={user.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border rounded-lg gap-4">
+                                                <div className="overflow-hidden">
+                                                    <p className="font-medium truncate">{user.name}</p>
+                                                    <p className="text-sm text-muted-foreground truncate">{user.email}</p>
                                                 </div>
                                                 <Select defaultValue={user.role}>
-                                                    <SelectTrigger className="w-[120px]">
+                                                    <SelectTrigger className="w-full sm:w-[120px]">
                                                         <SelectValue />
                                                     </SelectTrigger>
                                                     <SelectContent>
@@ -403,43 +403,45 @@ export default function SettingsPage() {
                                     <CardDescription>Global application settings.</CardDescription>
                                 </CardHeader>
                                 <CardContent className="space-y-4">
-                                    <div className="grid gap-2">
-                                        <Label>Language</Label>
-                                        <Select defaultValue="en">
-                                            <SelectTrigger>
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="en">English</SelectItem>
-                                                <SelectItem value="hi">Hindi</SelectItem>
-                                                <SelectItem value="es">Spanish</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                    <div className="grid gap-2">
-                                        <Label>Timezone</Label>
-                                        <Select defaultValue="utc">
-                                            <SelectTrigger>
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="utc">UTC</SelectItem>
-                                                <SelectItem value="est">EST</SelectItem>
-                                                <SelectItem value="ist">IST</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                    <div className="grid gap-2">
-                                        <Label>Date Format</Label>
-                                        <Select defaultValue="ddmmyyyy">
-                                            <SelectTrigger>
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="ddmmyyyy">DD/MM/YYYY</SelectItem>
-                                                <SelectItem value="mmddyyyy">MM/DD/YYYY</SelectItem>
-                                            </SelectContent>
-                                        </Select>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div className="grid gap-2">
+                                            <Label>Language</Label>
+                                            <Select defaultValue="en">
+                                                <SelectTrigger>
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="en">English</SelectItem>
+                                                    <SelectItem value="hi">Hindi</SelectItem>
+                                                    <SelectItem value="es">Spanish</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div className="grid gap-2">
+                                            <Label>Timezone</Label>
+                                            <Select defaultValue="utc">
+                                                <SelectTrigger>
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="utc">UTC</SelectItem>
+                                                    <SelectItem value="est">EST</SelectItem>
+                                                    <SelectItem value="ist">IST</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div className="grid gap-2">
+                                            <Label>Date Format</Label>
+                                            <Select defaultValue="ddmmyyyy">
+                                                <SelectTrigger>
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="ddmmyyyy">DD/MM/YYYY</SelectItem>
+                                                    <SelectItem value="mmddyyyy">MM/DD/YYYY</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
                                     </div>
                                 </CardContent>
                             </Card>

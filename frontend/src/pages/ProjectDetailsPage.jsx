@@ -93,16 +93,16 @@ export default function ProjectDetailsPage() {
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between gap-4">
-                <Button variant="ghost" onClick={() => navigate(-1)}>
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <Button variant="ghost" onClick={() => navigate(-1)} className="w-fit">
                     <ArrowLeft className="mr-2 h-4 w-4" /> Back to Projects
                 </Button>
-                <div className="flex gap-2">
-                    <Button onClick={() => setListOpen(true)} variant="outline">
+                <div className="flex flex-wrap gap-2">
+                    <Button onClick={() => setListOpen(true)} variant="outline" className="flex-1 sm:flex-none">
                         <ListOrdered className="mr-2 h-4 w-4" /> Monthly List View
                     </Button>
-                    <Button onClick={() => setTelemetryOpen(true)} variant="outline">
-                        <Activity className="mr-2 h-4 w-4" /> Log Single Data Point
+                    <Button onClick={() => setTelemetryOpen(true)} variant="outline" className="flex-1 sm:flex-none">
+                        <Activity className="mr-2 h-4 w-4" /> Log Data
                     </Button>
                 </div>
             </div>
@@ -122,7 +122,7 @@ export default function ProjectDetailsPage() {
                 </div>
             </div>
 
-            <div className="grid gap-6 md:grid-cols-3">
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
                         <CardTitle className="text-sm font-medium">Budget</CardTitle>

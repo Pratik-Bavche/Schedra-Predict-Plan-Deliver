@@ -223,4 +223,41 @@ const updateProjectTelemetryBulk = asyncHandler(async (req, res) => {
     }
 });
 
-export { getProjects, getProjectById, createProject, deleteProject, updateProject, updateProjectTelemetry, updateProjectTelemetryBulk };
+// @desc    Auto-fill telemetry for all projects (Demo Utility)
+// @route   POST /api/projects/bulk/auto-fill-telemetry
+// @access  Public
+const autoFillTelemetryAll = asyncHandler(async (req, res) => {
+    const projects = await Project.find({});
+    const now = new Date();
+
+    for (const project of projects) {
+        const start = new Date(project.startDate);
+        let current = new Date(start.getFullYear(), start.getMonth(), 1);
+        const monthlyBudget = (Number(project.budget) || 120000) / 12;
+
+        while (current <= now) {
+            const monthLabel = current.toLocaleString('default', { month: 'short', year: 'numeric' });
+            
+            // Only add if not already present
+            const exists = project.telemetry.find(t => t.month === monthLabel);
+            if (!exists) {
+                const variance = 0.8 + (Math.random() * 0.4);
+                const actualSpend = Math.round(monthlyBudget * variance);
+                const activeResources = Math.floor((Number(project.teamSize) || 10) * (0.8 + Math.random() * 0.4));
+
+                project.telemetry.push({
+                    month: monthLabel,
+                    actualSpend: actualSpend,
+                    activeResources: activeResources,
+                    timestamp: new Date(current)
+                });
+            }
+            current.setMonth(current.getMonth() + 1);
+        }
+        await project.save();
+    }
+
+    res.json({ message: "Telemetry auto-filled for all projects" });
+});
+
+export { getProjects, getProjectById, createProject, deleteProject, updateProject, updateProjectTelemetry, updateProjectTelemetryBulk, autoFillTelemetryAll };

@@ -161,7 +161,12 @@ export default function DashboardPage() {
             // Send request to AI
             const res = await api.post("/predict/ai", {
                 type: "dashboard_cost_forecast",
-                projects: projects.map(p => ({ name: p.name, budget: p.budget }))
+                projectData: projects.map(p => ({ 
+                    name: p.name, 
+                    budget: p.budget,
+                    startDate: p.startDate,
+                    telemetry: p.telemetry 
+                }))
             });
 
             if (res && res.forecastData) {

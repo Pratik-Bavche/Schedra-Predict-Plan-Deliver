@@ -1,14 +1,16 @@
 import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { TrendingUp, Users, Zap, Calendar, Download, AlertTriangle, AlertCircle, CheckCircle2 } from "lucide-react"
+import { TrendingUp, Users, Zap, Calendar, Download, AlertTriangle, AlertCircle, CheckCircle2, ListFilter, BarChart3, PieChart as PieChartIcon, Layers, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Progress } from "@/components/ui/progress"
+import { Badge } from "@/components/ui/badge"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { api } from "@/lib/api"
 import {
     LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer,
-    ComposedChart, Area
+    ComposedChart, Area, PieChart, Pie, Cell
 } from 'recharts'
 import html2canvas from "html2canvas"
 import jsPDF from "jspdf"
@@ -307,34 +309,122 @@ export default function AnalyticsPage() {
         pdf.save('schedra-analytics-report.pdf')
     }
 
+    const getMonthlyGroupedProjects = () => {
+        const groups = {};
+        projects.forEach(p => {
+            const date = new Date(p.startDate);
+            const month = date.toLocaleString('default', { month: 'long', year: 'numeric' });
+            if (!groups[month]) groups[month] = [];
+            groups[month].push(p);
+        });
+        
+        // Sort months chronologically
+        return Object.keys(groups)
+            .sort((a, b) => new Date(a) - new Date(b))
+            .map(month => ({ month, projects: groups[month] }));
+    };
+
+    const getCompletedProjects = () => {
+        return projects.filter(p => calculateCurrentPhase(p) === "Completed");
+    };
+
+    const getStatusDistribution = () => {
+        const dist = {};
+        projects.forEach(p => {
+            const status = calculateCurrentPhase(p);
+            dist[status] = (dist[status] || 0) + 1;
+        });
+        return Object.keys(dist).map(name => ({ name, value: dist[name] }));
+    };
+
+    const calculateBudgetMetrics = () => {
+        let totalBudget = 0;
+        let totalActual = 0;
+        projects.forEach(p => {
+            totalBudget += (Number(p.budget) || 0);
+            totalActual += p.telemetry?.reduce((sum, t) => sum + (t.actualSpend || 0), 0) || 0;
+        });
+        const burnRate = totalBudget ? Math.round((totalActual / totalBudget) * 100) : 0;
+        return { totalBudget, totalActual, burnRate };
+    };
+
+    const { totalBudget, totalActual, burnRate } = calculateBudgetMetrics();
+
+    const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff8042', '#0088FE', '#00C49F'];
+
+    const handleAutoFillAll = async () => {
+        const loadingToast = toast.loading("Generating realistic fleet metrics...");
+        try {
+            // We can call the backend to seed or just loop here if we want to be quick
+            // Let's assume we want a real backend sync
+            await api.post("/projects/bulk/auto-fill-telemetry");
+            
+            // Re-fetch projects to update UI
+            const data = await api.get("/projects");
+            setProjects(data);
+            
+            toast.dismiss(loadingToast);
+            toast.success("Fleet metrics updated with realistic AI-generated data");
+        } catch (error) {
+            toast.dismiss(loadingToast);
+            toast.error("Failed to generate fleet data");
+        }
+    };
+
     return (
         <div className="space-y-6">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                    <h2 className="text-3xl font-bold tracking-tight">AI Analytics</h2>
-                    <p className="text-muted-foreground">Real-time generative insights and predictions.</p>
+                    <h2 className="text-3xl font-bold tracking-tight">Metrics & Analytics</h2>
+                    <p className="text-muted-foreground">Comprehensive project data and predictive insights.</p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                    <Select value={selectedProjectId} onValueChange={handleProjectChange}>
-                        <SelectTrigger className="w-full sm:w-[200px]">
-                            <SelectValue placeholder="Select Project" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">Select a Project</SelectItem>
-                            {projects.map((project) => (
-                                <SelectItem key={project._id} value={project._id}>
-                                    {project.name}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                    <Button onClick={handleExport} variant="outline" className="flex-1 sm:flex-none">
-                        <Download className="mr-2 h-4 w-4" /> Export
+                    <Button onClick={handleAutoFillAll} variant="secondary" size="sm" className="hidden sm:flex font-bold bg-primary/10 hover:bg-primary/20 text-primary border-primary/20">
+                        <RefreshCw className="mr-2 h-4 w-4" /> Auto-Fill Demo Data
+                    </Button>
+                    <Button onClick={handleExport} variant="outline" size="sm" className="hidden sm:flex">
+                        <Download className="mr-2 h-4 w-4" /> Export Report
                     </Button>
                 </div>
             </div>
 
-            <div id="analytics-report" className="space-y-8">
+            <Tabs defaultValue="insights" className="space-y-6">
+                <TabsList className="grid w-full grid-cols-2 lg:w-[400px] h-11 p-1 bg-muted/50">
+                    <TabsTrigger value="insights" className="flex items-center gap-2">
+                        <Zap className="h-4 w-4" /> Deep AI Insights
+                    </TabsTrigger>
+                    <TabsTrigger value="fleet" className="flex items-center gap-2">
+                        <BarChart3 className="h-4 w-4" /> Project Metrics
+                    </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="insights" className="space-y-6">
+                    <div className="flex items-center justify-between bg-accent/5 p-4 rounded-lg border border-accent/20">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-primary/10 rounded-full">
+                                <ListFilter className="h-5 w-5 text-primary" />
+                            </div>
+                            <div>
+                                <h3 className="font-semibold">Deep Project Analysis</h3>
+                                <p className="text-xs text-muted-foreground">Select a specific project for granular AI predictions</p>
+                            </div>
+                        </div>
+                        <Select value={selectedProjectId} onValueChange={handleProjectChange}>
+                            <SelectTrigger className="w-full sm:w-[250px] bg-background">
+                                <SelectValue placeholder="Select Project" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">Select a Project</SelectItem>
+                                {projects.map((project) => (
+                                    <SelectItem key={project._id} value={project._id}>
+                                        {project.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    <div id="analytics-report" className="space-y-8">
 
                 {/* 1. Project Progress Overview */}
                 {progressData && (
@@ -581,6 +671,183 @@ export default function AnalyticsPage() {
                     )
                 }
             </div >
+                </TabsContent>
+
+                <TabsContent value="fleet" className="space-y-8">
+                    {/* Fleet Overview Stats */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <Card className="bg-gradient-to-br from-primary/5 to-transparent">
+                            <CardHeader className="pb-2">
+                                <CardTitle className="text-sm font-medium text-muted-foreground uppercase flex items-center gap-2">
+                                    <Layers className="h-4 w-4" /> Total Projects
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="text-4xl font-black">{projects.length}</div>
+                                <div className="flex items-center gap-2 mt-2">
+                                    <div className="text-xs font-bold text-muted-foreground uppercase tracking-tight">Fleet Valuation:</div>
+                                    <div className="text-sm font-black text-primary">${totalBudget.toLocaleString()}</div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                        <Card className="bg-gradient-to-br from-green-500/5 to-transparent border-green-500/10">
+                            <CardHeader className="pb-2">
+                                <CardTitle className="text-sm font-medium text-muted-foreground uppercase flex items-center gap-2">
+                                    <CheckCircle2 className="h-4 w-4 text-green-500" /> Capital Deployment
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="text-4xl font-black text-green-600">${totalActual.toLocaleString()}</div>
+                                <div className="space-y-1 mt-2">
+                                    <div className="flex justify-between text-[10px] font-bold uppercase text-muted-foreground">
+                                        <span>Budget Utilization</span>
+                                        <span>{burnRate}%</span>
+                                    </div>
+                                    <Progress value={burnRate} className="h-1.5 bg-green-500/10" />
+                                </div>
+                            </CardContent>
+                        </Card>
+                        <Card className="bg-gradient-to-br from-orange-500/5 to-transparent border-orange-500/10">
+                            <CardHeader className="pb-2">
+                                <CardTitle className="text-sm font-medium text-muted-foreground uppercase flex items-center gap-2">
+                                    <TrendingUp className="h-4 w-4 text-orange-500" /> Success Rate
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="text-4xl font-black text-orange-600">
+                                    {projects.length ? Math.round((getCompletedProjects().length / projects.length) * 100) : 0}%
+                                </div>
+                                <p className="text-xs text-muted-foreground mt-1 tracking-tight">
+                                    {getCompletedProjects().length} of {projects.length} projects delivered
+                                </p>
+                            </CardContent>
+                        </Card>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        {/* 1. Monthly Launch Timeline */}
+                        <Card className="lg:col-span-2 shadow-sm border-muted-foreground/10 overflow-hidden">
+                            <CardHeader className="border-b bg-muted/30">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <CardTitle className="text-xl font-bold">Monthly Project Timeline</CardTitle>
+                                        <CardDescription>Grouping projects by their initialization date</CardDescription>
+                                    </div>
+                                    <Calendar className="h-5 w-5 text-muted-foreground" />
+                                </div>
+                            </CardHeader>
+                            <CardContent className="p-0">
+                                <div className="max-h-[600px] overflow-y-auto custom-scrollbar">
+                                    {getMonthlyGroupedProjects().length === 0 ? (
+                                        <div className="p-12 text-center text-muted-foreground">No projects found for timeline.</div>
+                                    ) : (
+                                        getMonthlyGroupedProjects().reverse().map((group, idx) => (
+                                            <div key={group.month} className="group">
+                                                <div className="sticky top-0 bg-muted/80 backdrop-blur-sm px-6 py-3 border-y flex items-center justify-between z-10">
+                                                    <span className="font-bold text-sm tracking-widest uppercase text-primary">
+                                                        {group.month}
+                                                    </span>
+                                                    <Badge variant="secondary" className="font-mono">{group.projects.length} Projects</Badge>
+                                                </div>
+                                                <div className="divide-y divide-muted/50 px-2">
+                                                    {group.projects.map((p) => (
+                                                        <div key={p._id} className="flex items-center justify-between p-4 hover:bg-accent/5 transition-colors rounded-lg mx-2 my-1 group/item">
+                                                            <div className="flex flex-col">
+                                                                <span className="font-bold text-base group-hover/item:text-primary transition-colors">{p.name}</span>
+                                                                <div className="flex items-center gap-2 mt-0.5">
+                                                                    <span className="text-xs text-muted-foreground">{p.type}</span>
+                                                                    <span className="text-xs text-muted-foreground">•</span>
+                                                                    <span className="text-xs text-muted-foreground">Started: {new Date(p.startDate).toLocaleDateString()}</span>
+                                                                </div>
+                                                            </div>
+                                                            <div className="flex items-center gap-4">
+                                                                <div className="hidden sm:block text-right">
+                                                                    <div className="text-sm font-bold">${p.budget?.toLocaleString()}</div>
+                                                                    <div className="text-[10px] uppercase text-muted-foreground font-medium">Budget</div>
+                                                                </div>
+                                                                <Badge className="font-bold" variant={calculateCurrentPhase(p) === "Completed" ? "default" : "secondary"}>
+                                                                    {calculateCurrentPhase(p)}
+                                                                </Badge>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        {/* 2. Status Distribution & Roster */}
+                        <div className="space-y-8">
+                            <Card className="shadow-sm">
+                                <CardHeader>
+                                    <div className="flex items-center gap-2">
+                                        <PieChartIcon className="h-5 w-5 text-primary" />
+                                        <CardTitle className="text-lg">Fleet Status</CardTitle>
+                                    </div>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="h-[250px] w-full">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <PieChart>
+                                                <Pie
+                                                    data={getStatusDistribution()}
+                                                    cx="50%"
+                                                    cy="50%"
+                                                    innerRadius={60}
+                                                    outerRadius={80}
+                                                    paddingAngle={5}
+                                                    dataKey="value"
+                                                >
+                                                    {getStatusDistribution().map((entry, index) => (
+                                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                                    ))}
+                                                </Pie>
+                                                <RechartsTooltip />
+                                                <Legend layout="vertical" align="right" verticalAlign="middle" />
+                                            </PieChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                </CardContent>
+                            </Card>
+
+                            <Card className="shadow-sm border-green-500/20 bg-green-500/[0.02]">
+                                <CardHeader className="pb-3 border-b border-green-500/10">
+                                    <div className="flex items-center justify-between">
+                                        <CardTitle className="text-lg flex items-center gap-2 text-green-700">
+                                            <CheckCircle2 className="h-5 w-5" /> Completed Roster
+                                        </CardTitle>
+                                        <Badge variant="default" className="bg-green-600 hover:bg-green-700 uppercase">Archive</Badge>
+                                    </div>
+                                </CardHeader>
+                                <CardContent className="pt-4">
+                                    <div className="space-y-4">
+                                        {getCompletedProjects().length === 0 ? (
+                                            <p className="text-center py-8 text-sm text-muted-foreground italic">No projects completed yet.</p>
+                                        ) : (
+                                            getCompletedProjects().map(p => (
+                                                <div key={p._id} className="flex flex-col gap-1 p-3 rounded-md bg-background border border-green-500/20 shadow-sm relative overflow-hidden group">
+                                                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-green-500" />
+                                                    <div className="flex justify-between items-start">
+                                                        <span className="font-bold text-sm tracking-tight">{p.name}</span>
+                                                        <span className="text-[10px] font-black text-green-600 uppercase">Delivered</span>
+                                                    </div>
+                                                    <div className="flex justify-between items-end mt-1">
+                                                        <span className="text-[10px] text-muted-foreground">Ended: {new Date(p.dueDate).toLocaleDateString()}</span>
+                                                        <span className="text-xs font-bold text-primary">${p.budget?.toLocaleString()}</span>
+                                                    </div>
+                                                </div>
+                                            ))
+                                        )}
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </div>
+                    </div>
+                </TabsContent>
+            </Tabs>
         </div >
     )
 }

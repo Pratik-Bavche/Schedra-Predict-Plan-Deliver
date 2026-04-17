@@ -10,11 +10,11 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { MoreHorizontal, Plus, Archive, RotateCcw, Loader2 } from "lucide-react"
+import { MoreHorizontal, Plus, Archive, RotateCcw, Loader2, Activity } from "lucide-react"
 import { toast } from "sonner"
 import { api } from "@/lib/api"
 import { useNavigate } from "react-router-dom"
-
+import { ProjectTelemetryList } from "@/components/projects/ProjectTelemetryList"
 import { calculateCurrentPhase } from "@/lib/insightGenerator"
 
 export default function ProjectsPage() {
@@ -53,6 +53,8 @@ export default function ProjectsPage() {
     const [open, setOpen] = useState(false)
     const [editMode, setEditMode] = useState(false)
     const [currentId, setCurrentId] = useState(null)
+    const [telemetryOpen, setTelemetryOpen] = useState(false)
+    const [selectedProjectForLog, setSelectedProjectForLog] = useState(null)
 
 
     const fetchProjects = async () => {
@@ -163,6 +165,15 @@ export default function ProjectsPage() {
             console.error("Delete failed:", error);
             toast.error("Failed to delete project: " + error.message)
         }
+    }
+
+    const openTelemetry = (project) => {
+        setSelectedProjectForLog(project)
+        setTelemetryOpen(true)
+    }
+
+    const calculateActualSpend = (project) => {
+        return project.telemetry?.reduce((sum, t) => sum + (t.actualSpend || 0), 0) || 0
     }
 
 
@@ -523,6 +534,7 @@ export default function ProjectsPage() {
                                     <TableHead>Manager</TableHead>
                                     <TableHead>Status</TableHead>
                                     <TableHead>Risk</TableHead>
+                                    <TableHead className="text-right">Actual Cost</TableHead>
                                     <TableHead className="text-right">Budget</TableHead>
                                     <TableHead className="w-[50px]"></TableHead>
                                 </TableRow>
@@ -567,7 +579,23 @@ export default function ProjectsPage() {
                                                     {project.risk}
                                                 </span>
                                             </TableCell>
-                                            <TableCell className="text-right">${project.budget?.toLocaleString()}</TableCell>
+                                            <TableCell className="text-right">
+                                                <div className="flex flex-col items-end">
+                                                    <span className={cn(
+                                                        "font-bold",
+                                                        calculateActualSpend(project) > project.budget ? "text-red-500" : "text-green-600"
+                                                    )}>
+                                                        ${calculateActualSpend(project).toLocaleString()}
+                                                    </span>
+                                                    <span className="text-[10px] text-muted-foreground uppercase">Actual</span>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell className="text-right">
+                                                <div className="flex flex-col items-end">
+                                                    <span className="font-bold">${project.budget?.toLocaleString()}</span>
+                                                    <span className="text-[10px] text-muted-foreground uppercase">Planned</span>
+                                                </div>
+                                            </TableCell>
                                             <TableCell>
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild>
@@ -583,6 +611,9 @@ export default function ProjectsPage() {
                                                         </DropdownMenuItem>
                                                         <DropdownMenuItem className="cursor-pointer" onClick={() => handleOpenEdit(project)}>
                                                             Edit Details
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem className="cursor-pointer text-primary" onClick={() => openTelemetry(project)}>
+                                                            <Activity className="mr-2 h-4 w-4" /> Log Data
                                                         </DropdownMenuItem>
                                                         <DropdownMenuItem
                                                             className="text-destructive focus:text-destructive cursor-pointer"
@@ -601,6 +632,15 @@ export default function ProjectsPage() {
                     </div>
                 </CardContent>
             </Card>
+
+            {selectedProjectForLog && (
+                <ProjectTelemetryList
+                    open={telemetryOpen}
+                    onOpenChange={setTelemetryOpen}
+                    project={selectedProjectForLog}
+                    onUpdate={fetchProjects}
+                />
+            )}
         </div >
     )
 }

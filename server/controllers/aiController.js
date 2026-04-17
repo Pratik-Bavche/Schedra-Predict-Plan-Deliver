@@ -45,28 +45,49 @@ export const getAIAnalytics = async (req, res) => {
   // ---------------- PROMPT BUILDER ----------------
   // Support both single-project and dashboard-level requests
   if (type === "cost_forecast" || type === "dashboard_cost_forecast" || type === "project_cost_forecast") {
-    // For dashboard requests, projectData may be an array
-    const pd = (Array.isArray(projectData) ? projectData[0] : projectData) || {};
-    prompt = `
-You are an AI project manager.
-Analyze the project below and return ONLY valid JSON.
-IMPORTANT: For the forecastData, use the following month names as 'name': ${windowMonths.join(", ")}.
+    // For dashboard requests, projectData is usually an array of projects
+    const projects = Array.isArray(projectData) ? projectData : [projectData];
+    
+    // Aggregation Logic for Fleet
+    let totalBudget = 0;
+    const aggregatedTelemetry = {}; // month -> total actualSpend
+    
+    projects.forEach(p => {
+        totalBudget += (Number(p.budget) || 0);
+        if (p.telemetry) {
+            p.telemetry.forEach(t => {
+                aggregatedTelemetry[t.month] = (aggregatedTelemetry[t.month] || 0) + Number(t.actualSpend || 0);
+            });
+        }
+    });
 
-Project:
-Name: ${pd.name}
-Budget: ${pd.budget}
-Start Date: ${pd.startDate}
-Description: ${pd.description || "N/A"}
-Telemetry (Actual logged data): ${pd.telemetry ? JSON.stringify(pd.telemetry) : "No actual data logged yet"}
+    const telemetryString = Object.keys(aggregatedTelemetry).length > 0 
+        ? JSON.stringify(aggregatedTelemetry) 
+        : "No actual data logged across projects yet";
+
+    prompt = `
+You are an AI financial analyst for a project management platform called Schedra.
+Analyze the fleet of ${projects.length} projects below and return ONLY valid JSON.
+IMPORTANT: For the forecastData, use ONLY these month names as 'name': ${windowMonths.join(", ")}.
+
+Fleet Stats:
+- Total Projects: ${projects.length}
+- Total Fleet Budget: $${totalBudget}
+- Aggregated Actual Spend (Telemetry): ${telemetryString}
+
+Instructions:
+1. "Actual" in your JSON must exactly match the sum of "actualSpend" from the telemetry for that month.
+2. If a month has no telemetry, set "isSimulated": true for that entry and provide a realistic AI-predicted value based on the fleet budget.
+3. "Predicted" should always be your AI-generated benchmark/forecast.
 
 JSON format:
 {
   "forecastData": [
-    { "name": "${windowMonths[0]}", "Actual": 1000, "Predicted": 1200 }
+    { "name": "${windowMonths[0]}", "Actual": 1000, "Predicted": 1200, "isSimulated": false }
   ],
   "finalCost": 120000,
   "overrunPercentage": 10,
-  "insight": "One sentence insight. If telemetry was provided, base your 'Actual' values ON THE TELEMETRY for those months."
+  "insight": "Explain if the fleet is over/under budget based on the aggregated actual spend."
 }
 `;
   } else if (type === "dashboard_risk_assessment" || type === "project_risk_assessment") {
@@ -187,36 +208,34 @@ JSON format:
 // ---------------- FALLBACK ----------------
 const generateFallbackData = (type, projectData) => {
   if (type === "cost_forecast" || type === "dashboard_cost_forecast" || type === "project_cost_forecast") {
-    const pd = Array.isArray(projectData) ? projectData[0] : projectData;
-    const budget = Math.max(Number(pd?.budget) || 150000, 150000);
-
-    // If telemetry exists, map it to forecastData
-    if (pd?.telemetry && pd.telemetry.length > 0) {
-      const telemetryData = pd.telemetry.map(t => ({
-        name: t.month,
-        Actual: t.actualSpend,
-        Predicted: budget * 0.12 // Still predict something
-      }));
-
-      // If we have telemetry, use it, then maybe simulated future months
-      return {
-        forecastData: telemetryData,
-        finalCost: budget * 1.05,
-        overrunPercentage: 5,
-        insight: "Reporting based on user-logged telemetry data."
-      };
-    }
-
+    const projects = Array.isArray(projectData) ? projectData : [projectData];
+    const totalBudget = projects.reduce((sum, p) => sum + (Number(p.budget) || 150000), 0);
     const windowMonths = getLast6MonthsLabel();
-    return {
-        forecastData: windowMonths.map((m, i) => ({
+
+    const aggregatedTelemetry = {}; 
+    projects.forEach(p => {
+        if (p.telemetry) {
+            p.telemetry.forEach(t => {
+                aggregatedTelemetry[t.month] = (aggregatedTelemetry[t.month] || 0) + Number(t.actualSpend || 0);
+            });
+        }
+    });
+
+    const forecastData = windowMonths.map((m, i) => {
+        const actual = aggregatedTelemetry[m] || 0;
+        return {
             name: m,
-            Actual: budget * (0.1 + (i * 0.12)),
-            Predicted: budget * (0.12 + (i * 0.1))
-        })),
-        finalCost: budget * 1.08,
-        overrunPercentage: 8,
-        insight: "Spending is slightly above projection but within acceptable variance."
+            Actual: actual,
+            Predicted: (totalBudget / 12) * (1 + (i * 0.05)),
+            isSimulated: actual === 0
+        };
+    });
+
+    return {
+        forecastData,
+        finalCost: totalBudget * 1.1,
+        overrunPercentage: 10,
+        insight: "Reporting based on aggregated project telemetry (Fallback)."
     };
   }
 

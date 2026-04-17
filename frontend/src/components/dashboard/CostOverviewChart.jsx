@@ -69,29 +69,31 @@ export function CostOverviewChart({ data, loading }) {
                         </div>
                     ) : (
                         <ResponsiveContainer width="100%" height="100%">
-                            <ComposedChart data={chartData} margin={{ top: 10, right: 30, left: 20, bottom: 0 }}>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                            <ComposedChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.5} />
                                 <XAxis
                                     dataKey="name"
                                     stroke="#888888"
-                                    fontSize={12}
+                                    fontSize={11}
                                     tickLine={false}
                                     axisLine={false}
+                                    dy={10}
                                 />
                                 <YAxis
                                     stroke="#888888"
-                                    fontSize={12}
+                                    fontSize={11}
                                     tickLine={false}
                                     axisLine={false}
-                                    tickFormatter={(value) => `$${value / 1000}k`}
+                                    domain={[0, 'auto']}
+                                    tickFormatter={(value) => value >= 1000 ? `$${value / 1000}k` : `$${value}`}
                                 />
                                 <Tooltip
-                                    cursor={{ fill: 'transparent' }}
+                                    cursor={{ fill: 'hsl(var(--muted))', opacity: 0.1 }}
                                     content={<CustomTooltip />}
                                 />
-                                <Legend wrapperStyle={{ paddingTop: '20px' }} />
-                                <Bar dataKey="Actual" name="Actual Spend" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} barSize={40} />
-                                <Line type="monotone" dataKey="Predicted" name="AI Forecast" stroke="hsl(var(--destructive))" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                                <Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{ paddingBottom: '20px' }} />
+                                <Bar dataKey="Actual" name="Actual Spend" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} barSize={32} />
+                                <Line type="monotone" dataKey="Predicted" name="AI Forecast" stroke="hsl(var(--destructive))" strokeWidth={3} dot={{ r: 4, fill: 'white', strokeWidth: 2 }} activeDot={{ r: 6 }} />
                             </ComposedChart>
                         </ResponsiveContainer>
                     )}

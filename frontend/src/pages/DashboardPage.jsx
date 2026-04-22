@@ -156,9 +156,28 @@ export default function DashboardPage() {
     }, [selectedProjectId, stats.allProjects])
 
     const fetchAIForecast = async (projects) => {
+        if (!projects || projects.length === 0) return;
+
+        // Generate a fingerprint based on project IDs and their telemetry data
+        const fingerprint = JSON.stringify(projects.map(p => ({
+            id: p._id,
+            telemetry: p.telemetry,
+            budget: p.budget
+        })));
+
+        const cacheKey = `schedra_forecast_${selectedProjectId}`;
+        const cached = sessionStorage.getItem(cacheKey);
+
+        if (cached) {
+            const { data, hash } = JSON.parse(cached);
+            if (hash === fingerprint) {
+                setStats(prev => ({ ...prev, forecastData: data }));
+                return;
+            }
+        }
+
         setLoadingForecast(true);
         try {
-            // Send request to AI
             const res = await api.post("/predict/ai", {
                 type: "dashboard_cost_forecast",
                 projectData: projects.map(p => ({ 
@@ -171,10 +190,10 @@ export default function DashboardPage() {
 
             if (res && res.forecastData) {
                 setStats(prev => ({ ...prev, forecastData: res.forecastData }));
+                sessionStorage.setItem(cacheKey, JSON.stringify({ data: res.forecastData, hash: fingerprint }));
             }
         } catch (error) {
             console.error("AI Forecast Failed", error);
-            // Fallback: Local Aggregation if API completely fails (though backend handles fallback usually)
             fallbackLocalForecast(projects);
         } finally {
             setLoadingForecast(false);
@@ -202,6 +221,27 @@ export default function DashboardPage() {
     }
 
     const fetchAIRisk = async (projects) => {
+        if (!projects || projects.length === 0) return;
+
+        // Generate a fingerprint based on project IDs and their risk-related data
+        const fingerprint = JSON.stringify(projects.map(p => ({
+            id: p._id,
+            riskLevel: p.riskLevel,
+            type: p.type,
+            region: p.region
+        })));
+
+        const cacheKey = `schedra_risk_${selectedProjectId}`;
+        const cached = sessionStorage.getItem(cacheKey);
+
+        if (cached) {
+            const { data, hash } = JSON.parse(cached);
+            if (hash === fingerprint) {
+                setStats(prev => ({ ...prev, riskData: data }));
+                return;
+            }
+        }
+
         setLoadingRisk(true);
         try {
             const res = await api.post("/predict/ai", {
@@ -216,6 +256,7 @@ export default function DashboardPage() {
 
             if (res && res.riskData) {
                 setStats(prev => ({ ...prev, riskData: res.riskData }));
+                sessionStorage.setItem(cacheKey, JSON.stringify({ data: res.riskData, hash: fingerprint }));
             }
         } catch (error) {
             console.error("AI Risk Assessment Failed", error);

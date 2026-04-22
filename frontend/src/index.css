@@ -72,6 +72,7 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
   }
 }
 
@@ -88,5 +89,58 @@
   }
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
     background: hsl(var(--muted-foreground) / 0.4);
+  }
+
+  .glass {
+    @apply bg-white/10 backdrop-blur-md border border-white/20 shadow-xl;
+  }
+  
+  .glass-dark {
+    @apply bg-black/20 backdrop-blur-lg border border-white/10 shadow-2xl;
+  }
+
+  .mesh-gradient {
+    background-color: #000000;
+    background-image: 
+      radial-gradient(at 0% 0%, hsla(253,16%,7%,1) 0, transparent 50%), 
+      radial-gradient(at 50% 0%, hsla(225,39%,30%,1) 0, transparent 50%), 
+      radial-gradient(at 100% 0%, hsla(339,49%,30%,1) 0, transparent 50%), 
+      radial-gradient(at 0% 50%, hsla(225,39%,30%,1) 0, transparent 50%), 
+      radial-gradient(at 50% 50%, hsla(253,16%,7%,1) 0, transparent 50%), 
+      radial-gradient(at 100% 50%, hsla(339,49%,30%,1) 0, transparent 50%), 
+      radial-gradient(at 0% 100%, hsla(253,16%,7%,1) 0, transparent 50%), 
+      radial-gradient(at 50% 100%, hsla(225,39%,30%,1) 0, transparent 50%), 
+      radial-gradient(at 100% 100%, hsla(339,49%,30%,1) 0, transparent 50%);
+  }
+
+  .animate-blob {
+    animation: blob 7s infinite;
+  }
+  
+  .animation-delay-2000 {
+    animation-delay: 2s;
+  }
+  
+  .animation-delay-4000 {
+    animation-delay: 4s;
+  }
+
+  .vignette {
+    box-shadow: inset 0 0 150px rgba(0,0,0,0.5);
+  }
+
+  @keyframes blob {
+    0% {
+      transform: translate(0px, 0px) scale(1);
+    }
+    33% {
+      transform: translate(30px, -50px) scale(1.1);
+    }
+    66% {
+      transform: translate(-20px, 20px) scale(0.9);
+    }
+    100% {
+      transform: translate(0px, 0px) scale(1);
+    }
   }
 }

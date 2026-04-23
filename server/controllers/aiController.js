@@ -16,13 +16,13 @@ const getKeys = () =>
 
 let currentGlobalKeyIndex = 0;
 
-// Helper for last 6 months
+// Helper for last 6 months - Standardized to en-US for cross-environment consistency
 const getLast6MonthsLabel = () => {
     const list = [];
     for (let i = 5; i >= 0; i--) {
         const d = new Date();
         d.setMonth(d.getMonth() - i);
-        list.push(d.toLocaleString('default', { month: 'short', year: 'numeric' }));
+        list.push(d.toLocaleString('en-US', { month: 'short', year: 'numeric' }));
     }
     return list;
 };
@@ -126,33 +126,46 @@ JSON format:
   // ---------------- GEMINI CALL ----------------
   const generateWithRetry = async () => {
     // Priority list of models as requested
-    // Note: 2.5 models are hypothetical or preview-only; adding 2.0 and 1.5 as safe production fallbacks.
+    // Removed non-existent models (2.5) and focused on stable ones.
     const MODELS = [
-      "gemini-2.5-flash-lite",
-      "gemini-2.5-flash",
       "gemini-2.0-flash",
-      "gemini-1.5-flash"
+      "gemini-1.5-flash",
+      "gemini-1.5-pro"
     ];
 
     let lastError = null;
 
     for (const modelName of MODELS) {
-      console.log(`[${timestamp}] Trying model: ${modelName}`);
+      console.log(`[${timestamp}] Attempting AI generation with model: ${modelName}`);
 
       for (let k = 0; k < apiKeys.length; k++) {
         const keyIdx = (currentGlobalKeyIndex + k) % apiKeys.length;
         const genAI = new GoogleGenerativeAI(apiKeys[keyIdx]);
 
         try {
-          // Rate-limit protection
-          await new Promise(r => setTimeout(r, 800)); // Slightly reduced wait for efficiency
+          // Rate-limit protection - increased slightly for stability
+          await new Promise(r => setTimeout(r, 1000)); 
 
           console.log(`[${timestamp}] Requesting ${modelName} with key index ${keyIdx}...`);
 
-          const model = genAI.getGenerativeModel({ model: modelName });
-          const result = await model.generateContent(prompt);
+          const model = genAI.getGenerativeModel({ 
+            model: modelName,
+            generationConfig: {
+              temperature: 0.2, // Lower temperature for more consistent JSON
+              topP: 0.8,
+              topK: 40,
+            }
+          });
 
-          const text = result.response.text();
+          const result = await model.generateContent(prompt);
+          const response = await result.response;
+          const text = response.text();
+
+          if (!text) {
+              console.warn(`[${timestamp}] Model ${modelName} returned empty text.`);
+              continue;
+          }
+
           currentGlobalKeyIndex = keyIdx; // Update global index on success
           return { text, modelName };
         } catch (err) {
@@ -161,18 +174,18 @@ JSON format:
           console.error(`[${timestamp}] Error with ${modelName} (key ${keyIdx}):`, err.message);
 
           // If it's a model not found error, break key loop and try next model immediately
-          if (msg.includes("not found") || msg.includes("404")) {
-            console.warn(`[${timestamp}] Model ${modelName} not found. Switching to next model.`);
+          if (msg.includes("not found") || msg.includes("404") || msg.includes("unsupported")) {
+            console.warn(`[${timestamp}] Model ${modelName} not supported/found. Switching to next model.`);
             break; // Break key loop, go to next model
           }
 
           // If quota/rate limit, try next key (continue loop)
-          if (msg.includes("429") || msg.includes("quota") || msg.includes("403")) {
+          if (msg.includes("429") || msg.includes("quota") || msg.includes("403") || msg.includes("limit")) {
             console.warn(`[${timestamp}] Quota exceeded for key ${keyIdx}. Trying next key.`);
             continue;
           }
 
-          // Other errors, continue to next key/model attempt
+          // Other errors, continue to next key attempt
         }
       }
     }
@@ -183,7 +196,7 @@ JSON format:
   // ---------------- RESPONSE HANDLING ----------------
   try {
     const { text, modelName } = await generateWithRetry();
-    console.log(`[${timestamp}] Gemini success using ${modelName}`);
+    console.log(`[${timestamp}] SUCCESS: Generated results using ${modelName}`);
 
     let jsonStr = text.replace(/```json|```/g, "").trim();
     // Improved JSON extraction in case of preamble/postamble
@@ -198,9 +211,10 @@ JSON format:
     data.__aiModel = modelName;
     return res.json(data);
   } catch (err) {
-    console.warn(`[${timestamp}] AI Generation failed: ${err.message}. Using FALLBACK data.`);
+    console.error(`[${timestamp}] CRITICAL: AI Generation failed after retries: ${err.message}. Triggering server fallback.`);
     const fallback = generateFallbackData(type, projectData);
     fallback.__aiSource = "fallback";
+    fallback.__aiError = err.message;
     return res.json(fallback);
   }
 };

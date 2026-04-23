@@ -14,7 +14,7 @@ export const generateProjectForecast = (project) => {
         // Trimming Logic: If project is completed/ended, don't show future months
         if (d > end && (project.status === "Completed" || calculateCurrentPhase(project) === "Completed")) continue;
         
-        windowMonths.push(d.toLocaleString('default', { month: 'short', year: 'numeric' }));
+        windowMonths.push(d.toLocaleString('en-US', { month: 'short', year: 'numeric' }));
     }
 
     // Map telemetry and benchmarks to this 6-month window

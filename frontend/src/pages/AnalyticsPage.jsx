@@ -313,7 +313,7 @@ export default function AnalyticsPage() {
         const groups = {};
         projects.forEach(p => {
             const date = new Date(p.startDate);
-            const month = date.toLocaleString('default', { month: 'long', year: 'numeric' });
+            const month = date.toLocaleString('en-US', { month: 'long', year: 'numeric' });
             if (!groups[month]) groups[month] = [];
             groups[month].push(p);
         });
@@ -647,7 +647,7 @@ export default function AnalyticsPage() {
                                 <div className="text-center space-y-2">
                                     <h3 className="text-xl font-semibold tracking-tight">{aiStatus}</h3>
                                     <p className="text-muted-foreground text-sm max-w-xs mx-auto">
-                                        Gemini 2.5 Flash is crunching telemetry to generate predictive insights...
+                                        Gemini AI is crunching telemetry to generate predictive insights...
                                     </p>
                                 </div>
                                 <div className="w-full max-w-md space-y-2">

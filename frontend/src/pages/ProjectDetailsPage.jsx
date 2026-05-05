@@ -63,15 +63,6 @@ export default function ProjectDetailsPage() {
                 risks: riskRes.riskData || []
             });
 
-            // Prevent duplicate toasts using a session-based check or simpler logic
-            if (forecastRes.insight) {
-                const lastInsight = localStorage.getItem(`lastInsight_${projectData._id}`);
-                if (lastInsight !== forecastRes.insight) {
-                    toast.info("AI Insight", { description: forecastRes.insight });
-                    localStorage.setItem(`lastInsight_${projectData._id}`, forecastRes.insight);
-                }
-            }
-
         } catch (error) {
             console.error("AI Project Analysis Failed", error)
             // Fallback handled by backend usually, but if API fails entirely:

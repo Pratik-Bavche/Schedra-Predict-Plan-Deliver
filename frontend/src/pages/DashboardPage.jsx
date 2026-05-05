@@ -54,6 +54,7 @@ export default function DashboardPage() {
         notifications: []
     })
     const [loading, setLoading] = useState(true)
+    const [isInitialLoad, setIsInitialLoad] = useState(true)
     const [loadingForecast, setLoadingForecast] = useState(false)
     const [loadingRisk, setLoadingRisk] = useState(false)
     const [selectedMetric, setSelectedMetric] = useState(null)
@@ -66,10 +67,14 @@ export default function DashboardPage() {
                 const response = await api.get("/projects")
                 const projects = Array.isArray(response) ? response : [];
                 setStats(prev => ({ ...prev, allProjects: projects }));
+                if (projects.length === 0) {
+                    setIsInitialLoad(false);
+                }
                 setLoading(false);
             } catch (error) {
                 toast.error("Failed to load projects");
                 setLoading(false);
+                setIsInitialLoad(false);
             }
         }
         fetchAllProjects()
@@ -147,9 +152,14 @@ export default function DashboardPage() {
             // Sync Gantt filter
             setGanttFilter(selectedProjectId);
 
-            // Fetch AI Data
-            fetchAIForecast(projects);
-            fetchAIRisk(projects);
+            // Fetch AI Data concurrently and then disable initial load
+            Promise.all([
+                fetchAIForecast(projects),
+                fetchAIRisk(projects)
+            ]).finally(() => {
+                // Short delay to prevent flash and ensure UI settles
+                setTimeout(() => setIsInitialLoad(false), 800);
+            });
         }
 
         updateDashboardMetrics();
@@ -246,7 +256,7 @@ export default function DashboardPage() {
         try {
             const res = await api.post("/predict/ai", {
                 type: "dashboard_risk_assessment",
-                projects: projects.map(p => ({
+                projectData: projects.map(p => ({
                     name: p.name,
                     region: p.region,
                     type: p.type,
@@ -369,9 +379,21 @@ export default function DashboardPage() {
         toast.success("Notifications cleared");
     }
 
-    if (loading) return (
-        <div className="flex h-[50vh] w-full items-center justify-center">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+    if (loading || isInitialLoad) return (
+        <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-background/95 backdrop-blur-md transition-opacity duration-500">
+            <div className="relative flex items-center justify-center mb-8">
+                {/* Outer glowing ring */}
+                <div className="absolute h-32 w-32 rounded-full border-t-4 border-primary animate-spin" style={{ animationDuration: '2s' }} />
+                <div className="absolute h-24 w-24 rounded-full border-b-4 border-primary/50 animate-spin" style={{ animationDuration: '1.5s', animationDirection: 'reverse' }} />
+                {/* Center Logo/Icon */}
+                <div className="relative flex items-center justify-center h-16 w-16 bg-primary/10 rounded-full shadow-[0_0_30px_rgba(var(--primary),0.3)]">
+                    <Activity className="h-8 w-8 text-primary animate-pulse" />
+                </div>
+            </div>
+            <div className="space-y-3 text-center max-w-md px-6">
+                <h2 className="text-2xl font-bold tracking-tight text-foreground">Preparing your workspace</h2>
+                <p className="text-sm text-muted-foreground animate-pulse font-medium">Analyzing project insights, fetching telemetry, and gathering AI predictions...</p>
+            </div>
         </div>
     )
 

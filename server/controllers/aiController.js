@@ -82,12 +82,12 @@ JSON format:
   "insight": "Explain if the fleet is over/under budget based on the aggregated actual spend."
 }
 `;
-    } else if (type === "dashboard_risk_assessment" || type === "project_risk_assessment") {
+    } else if (type === "dashboard_risk_assessment" || type === "project_risk_assessment" || type === "risk_assessment") {
         // Expect an array of projects or single project
         const projects = (Array.isArray(projectData) ? projectData : [projectData]).filter(p => p);
 
         // If it's a single project risk assessment (Project Details Page), we want a detailed breakdown
-        const isSingleProject = type === "project_risk_assessment";
+        const isSingleProject = type === "project_risk_assessment" || type === "risk_assessment";
 
         const projectList = projects
             .map((p) => `- Name: ${p.name || "Unnamed"}, Region: ${p.region || p.type || "General"}, Risk: ${p.riskLevel || "Low"}`)
@@ -107,7 +107,40 @@ JSON format:
 {
   "riskData": [
     { "region": "Region/Zone Name", "factor": "Risk Factor Name", "score": 85 }
-  ]
+  ],
+  "riskScore": 85,
+  "confidenceLevel": "High",
+  "hotspots": ["Budget Constraint", "Tight Deadline"],
+  "insight": "High risk detected in budget allocation."
+}
+`;
+    } else if (type === "resource_utilization") {
+        prompt = `
+You are an AI resource manager. Analyze the project and provide team utilization metrics.
+Return ONLY valid JSON.
+JSON format:
+{
+  "utilizationScore": 85,
+  "heatmap": [
+    { "name": "Dev Team", "data": [{ "x": "Mon", "y": 80 }, { "x": "Tue", "y": 85 }] }
+  ],
+  "pendingApprovals": 12,
+  "insight": "Resource utilization is optimal."
+}
+`;
+    } else if (type === "timeline_prediction") {
+        prompt = `
+You are an AI timeline optimization expert. Analyze the project and predict timeline completion.
+Return ONLY valid JSON.
+JSON format:
+{
+  "predictedCompletion": "2025-12-31",
+  "delayProbability": "Medium",
+  "phases": [
+    { "name": "Planning", "status": "Done" },
+    { "name": "Execution", "status": "Delayed" }
+  ],
+  "insight": "Potential delays detected in execution."
 }
 `;
     } else {

@@ -72,8 +72,13 @@ export default function ProjectDetailsPage() {
         }
     }
 
-    if (loading) return <div className="p-8 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" /></div>
-    if (!project) return <div className="p-8">Project not found</div>
+    if (loading || (aiLoading && !project)) return (
+        <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
+            <Loader2 className="h-10 w-10 animate-spin text-primary" />
+            <p className="text-muted-foreground animate-pulse font-medium">Gathering project insights...</p>
+        </div>
+    )
+    if (!loading && !project) return <div className="p-8 text-center text-muted-foreground font-medium">Project not found. Please verify the URL.</div>
 
     const forecastData = generateProjectForecast(project);
     const timelineTasks = generateProjectTimeline(project);

@@ -12,6 +12,7 @@ import { RiskHeatmap } from "@/components/dashboard/RiskHeatmap"
 import { ProjectGantt } from "@/components/dashboard/ProjectGantt"
 import { ProjectTelemetryDialog } from "@/components/projects/ProjectTelemetryDialog"
 import { ProjectTelemetryList } from "@/components/projects/ProjectTelemetryList"
+import { ProjectTimelineDialog } from "@/components/projects/ProjectTimelineDialog"
 
 import { generateProjectForecast, generateProjectTimeline, calculateOverallProgress, calculateCurrentPhase } from "@/lib/insightGenerator"
 
@@ -23,6 +24,7 @@ export default function ProjectDetailsPage() {
     const [aiLoading, setAiLoading] = useState(false)
     const [telemetryOpen, setTelemetryOpen] = useState(false)
     const [listOpen, setListOpen] = useState(false)
+    const [timelineOpen, setTimelineOpen] = useState(false)
     const [aiStats, setAiStats] = useState({
         forecast: [],
         risks: []
@@ -173,7 +175,14 @@ export default function ProjectDetailsPage() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-7 gap-6">
-                <ProjectGantt tasks={timelineTasks} />
+                <ProjectGantt 
+                    tasks={timelineTasks} 
+                    headerAction={
+                        <Button variant="outline" size="sm" onClick={() => setTimelineOpen(true)}>
+                            Adjust Timeline
+                        </Button>
+                    }
+                />
             </div>
 
             <ProjectTelemetryDialog
@@ -186,6 +195,13 @@ export default function ProjectDetailsPage() {
             <ProjectTelemetryList
                 open={listOpen}
                 onOpenChange={setListOpen}
+                project={project}
+                onUpdate={fetchProject}
+            />
+
+            <ProjectTimelineDialog
+                open={timelineOpen}
+                onOpenChange={setTimelineOpen}
                 project={project}
                 onUpdate={fetchProject}
             />

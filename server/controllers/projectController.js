@@ -155,6 +155,11 @@ const updateProject = asyncHandler(async (req, res) => {
         project.scheduleUrl = req.body.scheduleUrl || project.scheduleUrl;
         project.boqUrl = req.body.boqUrl || project.boqUrl;
 
+        // Phase Adjustments
+        if (req.body.phaseAdjustments !== undefined) {
+            project.phaseAdjustments = req.body.phaseAdjustments;
+        }
+
         const updatedProject = await project.save();
         res.json(updatedProject);
     } else {

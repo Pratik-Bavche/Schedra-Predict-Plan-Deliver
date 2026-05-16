@@ -104,6 +104,10 @@ const projectSchema = mongoose.Schema(
             actualSpend: Number,
             activeResources: Number,
             timestamp: { type: Date, default: Date.now }
+        }],
+        phaseAdjustments: [{
+            phaseName: String,
+            endDate: Date
         }]
     },
     {

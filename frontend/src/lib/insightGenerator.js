@@ -70,9 +70,28 @@ export const generateProjectTimeline = (project) => {
         { name: "Deployment", startP: 0.75, endP: 1.0, color: "#a3a3a3", sColor: "#525252" }
     ];
 
+    const phaseDuration = totalDuration / 4;
+    let currentStart = start.getTime();
+
     return phases.map((phase, index) => {
-        const tStart = getDateAt(phase.startP);
-        const tEnd = getDateAt(phase.endP);
+        // Predicted end based on equal division
+        const predictedEnd = currentStart + phaseDuration;
+        
+        // Check if there is a manual adjustment for this phase
+        const adjustment = project.phaseAdjustments?.find(a => a.phaseName === phase.name);
+        let actualEnd = adjustment?.endDate ? new Date(adjustment.endDate).getTime() : predictedEnd;
+
+        // Prevent end date from being before the start date of this phase
+        if (actualEnd < currentStart) {
+            actualEnd = currentStart + (1000 * 60 * 60 * 24); // Minimum 1 day duration
+        }
+
+        const tStart = new Date(currentStart);
+        const tEnd = new Date(actualEnd);
+        
+        // Next phase starts exactly when this phase ends
+        currentStart = actualEnd;
+
         const taskId = `${id}_${index + 1}`;
         const prevId = index > 0 ? [`${id}_${index}`] : [];
 
@@ -83,7 +102,7 @@ export const generateProjectTimeline = (project) => {
             id: taskId,
             type: phase.type || "task",
             progress: getProgress(tStart, tEnd),
-            isDisabled: true, // Read-only projection
+            isDisabled: true, // Read-only projection, we'll use a dialog for edit
             dependencies: prevId,
             styles: { progressColor: phase.color, progressSelectedColor: phase.sColor },
         };
@@ -149,11 +168,14 @@ export function generateCostBreakdown(project, timeRange = 'all') {
 
 export function calculateOverallProgress(project) {
     if (!project) return 0;
-    const start = new Date(project.startDate || new Date());
-    let end = new Date(project.dueDate || new Date(start.getTime() + 60 * 24 * 60 * 60 * 1000));
-    if (end <= start) end = new Date(start.getTime() + 60 * 24 * 60 * 60 * 1000);
+    
+    const tasks = generateProjectTimeline(project);
+    if (tasks.length === 0) return 0;
 
+    const start = tasks[0].start;
+    const end = tasks[tasks.length - 1].end;
     const now = new Date();
+
     if (now < start) return 0;
     if (now > end) return 100;
 
@@ -165,19 +187,20 @@ export function calculateOverallProgress(project) {
 export function calculateCurrentPhase(project) {
     if (!project) return "Not Started";
     
-    const now = new Date();
-    const end = new Date(project.dueDate);
-    const progress = calculateOverallProgress(project); // 0-100
-    const p = progress / 100;
+    const tasks = generateProjectTimeline(project);
+    if (tasks.length === 0) return "Not Started";
 
-    // Fix: If deployment is completed (p >= 1 or past end), show Completed
-    if (p >= 1 || now > end) {
-        return "Completed";
+    const now = new Date();
+    
+    if (now < tasks[0].start) return "Not Started";
+    if (now > tasks[tasks.length - 1].end) return "Completed";
+
+    // Find the task that encompasses 'now'
+    for (const task of tasks) {
+        if (now >= task.start && now <= task.end) {
+            return task.name;
+        }
     }
 
-    if (p <= 0) return "Not Started";
-    if (p < 0.25) return "Planning";
-    if (p < 0.50) return "Implementation";
-    if (p < 0.75) return "Testing";
-    return "Deployment";
+    return "Completed";
 }

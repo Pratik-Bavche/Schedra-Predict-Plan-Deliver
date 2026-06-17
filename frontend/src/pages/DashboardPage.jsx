@@ -67,10 +67,8 @@ export default function DashboardPage() {
                 const response = await api.get("/projects")
                 const projects = Array.isArray(response) ? response : [];
                 setStats(prev => ({ ...prev, allProjects: projects }));
-                if (projects.length === 0) {
-                    setIsInitialLoad(false);
-                }
                 setLoading(false);
+                setIsInitialLoad(false);
             } catch (error) {
                 toast.error("Failed to load projects");
                 setLoading(false);
@@ -152,14 +150,9 @@ export default function DashboardPage() {
             // Sync Gantt filter
             setGanttFilter(selectedProjectId);
 
-            // Fetch AI Data concurrently and then disable initial load
-            Promise.all([
-                fetchAIForecast(projects),
-                fetchAIRisk(projects)
-            ]).finally(() => {
-                // Short delay to prevent flash and ensure UI settles
-                setTimeout(() => setIsInitialLoad(false), 800);
-            });
+            // Fetch AI Data concurrently in background without blocking the UI
+            fetchAIForecast(projects);
+            fetchAIRisk(projects);
         }
 
         updateDashboardMetrics();

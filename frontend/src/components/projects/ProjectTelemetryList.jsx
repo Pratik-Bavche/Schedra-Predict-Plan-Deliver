@@ -25,18 +25,42 @@ export function ProjectTelemetryList({ project, open, onOpenChange, onUpdate }) 
         }
     }, [open, project])
 
+    const isCompleted = project.status === "Completed" ||
+        (project.dueDate && new Date() > new Date(project.dueDate));
+
     const generateMonthlyRows = () => {
-        const start = new Date(project.startDate)
-        const end = new Date() // Current month
+        const start = new Date(project.startDate);
+
+        // For completed projects, cap at dueDate; for ongoing, cap at today
+        const rawEnd = isCompleted && project.dueDate
+            ? new Date(project.dueDate)
+            : new Date();
+
+        const end = new Date(rawEnd.getFullYear(), rawEnd.getMonth(), 1);
         const generated = []
 
         let current = new Date(start.getFullYear(), start.getMonth(), 1)
         
         while (current <= end) {
-            const monthLabel = current.toLocaleString('default', { month: 'short', year: 'numeric' })
+            const monthLabel = current.toLocaleString('en-US', { month: 'short', year: 'numeric' })
             
-            // Try to find existing data for this month
-            const existing = project.telemetry?.find(t => t.month === monthLabel)
+            // Locale-agnostic lookup: compare by year+month index
+            const existing = project.telemetry?.find(t => {
+                try {
+                    const d = new Date(t.month.replace(/^(\w+)\s(\d{4})$/, '$1 1, $2'));
+                    if (!isNaN(d.getTime())) {
+                        return d.getFullYear() === current.getFullYear() &&
+                               d.getMonth()    === current.getMonth();
+                    }
+                    // numeric format "M/YYYY"
+                    const parts = t.month.match(/^(\d{1,2})\/(\d{4})$/);
+                    if (parts) {
+                        return parseInt(parts[2]) === current.getFullYear() &&
+                               parseInt(parts[1]) - 1 === current.getMonth();
+                    }
+                    return false;
+                } catch { return false; }
+            })
             
             generated.push({
                 month: monthLabel,
@@ -44,12 +68,12 @@ export function ProjectTelemetryList({ project, open, onOpenChange, onUpdate }) 
                 activeResources: existing ? existing.activeResources : ""
             })
 
-            // Increment month
             current.setMonth(current.getMonth() + 1)
         }
 
         setRows(generated.reverse()) // Show latest first
     }
+
 
     const handleInputChange = (index, field, value) => {
         const newRows = [...rows]
@@ -104,9 +128,23 @@ export function ProjectTelemetryList({ project, open, onOpenChange, onUpdate }) 
                 <DialogHeader>
                     <DialogTitle>Project Metrics: Monthly List View</DialogTitle>
                     <DialogDescription>
-                        Enter actual data for each month starting from {new Date(project.startDate).toLocaleDateString()}.
+                        {isCompleted
+                            ? `Showing months from ${new Date(project.startDate).toLocaleDateString()} to ${new Date(project.dueDate).toLocaleDateString()} (project completed).`
+                            : `Enter actual data for each month starting from ${new Date(project.startDate).toLocaleDateString()}.`
+                        }
                     </DialogDescription>
                 </DialogHeader>
+
+                {/* Completed project restriction notice */}
+                {isCompleted && (
+                    <div className="mb-2 p-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-sm font-medium rounded flex items-center gap-2">
+                        <span>✅</span>
+                        <span>
+                            This project is <strong>completed</strong>. Log data is restricted to months within the project duration
+                            ({new Date(project.startDate).toLocaleString('en-US', { month: 'short', year: 'numeric' })} → {new Date(project.dueDate).toLocaleString('en-US', { month: 'short', year: 'numeric' })}).
+                        </span>
+                    </div>
+                )}
                 
                 {/* Budget Dashboard */}
                 <div className="grid grid-cols-3 gap-4 mb-6 p-4 bg-muted/30 rounded-lg border border-border/50">

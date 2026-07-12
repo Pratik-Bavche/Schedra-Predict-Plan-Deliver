@@ -158,14 +158,59 @@ export default function DashboardPage() {
         updateDashboardMetrics();
     }, [selectedProjectId, stats.allProjects])
 
+    // ─── Helpers ──────────────────────────────────────────────────────────────
+    const currentMonthLabel = new Date().toLocaleString('en-US', { month: 'short', year: 'numeric' });
+
+    /** Parse a "Jun 2026" label into a Date for comparison */
+    const parseMonthLabel = (label) => {
+        try { return new Date(`${label.replace(' ', ' 1, ')}`); } catch { return new Date(0); }
+    };
+
+    /**
+     * After we have forecastData (from AI or local fallback), this helper:
+     *  - marks the current month entry with isCurrentMonth:true
+     *  - removes months that fall after the latest project completion date
+     *    (only when every project in scope is already completed)
+     */
+    const postProcessForecast = (forecastData, projects) => {
+        // Determine cut-off: only clip when ALL selected projects are completed
+        const allCompleted = projects.length > 0 && projects.every(p => p.status === 'Completed');
+        let cutoffDate = null;
+        if (allCompleted) {
+            cutoffDate = projects.reduce((max, p) => {
+                const d = new Date(p.dueDate || 0);
+                return d > max ? d : max;
+            }, new Date(0));
+        }
+
+        return forecastData
+            .filter(d => {
+                if (!cutoffDate) return true;
+                // Keep months up to (and including) the last completion month
+                const monthDate = parseMonthLabel(d.name);
+                // Allow the month that contains the cutoff date
+                return (
+                    monthDate.getFullYear() < cutoffDate.getFullYear() ||
+                    (monthDate.getFullYear() === cutoffDate.getFullYear() &&
+                     monthDate.getMonth() <= cutoffDate.getMonth())
+                );
+            })
+            .map(d => ({
+                ...d,
+                isCurrentMonth: d.name === currentMonthLabel
+            }));
+    };
+
     const fetchAIForecast = async (projects) => {
         if (!projects || projects.length === 0) return;
 
-        // Generate a fingerprint based on project IDs and their telemetry data
+        // Generate a fingerprint based on project IDs, telemetry, status and dueDate
         const fingerprint = JSON.stringify(projects.map(p => ({
             id: p._id,
             telemetry: p.telemetry,
-            budget: p.budget
+            budget: p.budget,
+            status: p.status,
+            dueDate: p.dueDate
         })));
 
         const cacheKey = `schedra_forecast_${selectedProjectId}`;
@@ -174,7 +219,7 @@ export default function DashboardPage() {
         if (cached) {
             const { data, hash } = JSON.parse(cached);
             if (hash === fingerprint) {
-                setStats(prev => ({ ...prev, forecastData: data }));
+                setStats(prev => ({ ...prev, forecastData: postProcessForecast(data, projects) }));
                 return;
             }
         }
@@ -187,12 +232,15 @@ export default function DashboardPage() {
                     name: p.name, 
                     budget: p.budget,
                     startDate: p.startDate,
+                    dueDate: p.dueDate,
+                    status: p.status,
                     telemetry: p.telemetry 
                 }))
             });
 
             if (res && res.forecastData) {
-                setStats(prev => ({ ...prev, forecastData: res.forecastData }));
+                const processed = postProcessForecast(res.forecastData, projects);
+                setStats(prev => ({ ...prev, forecastData: processed }));
                 sessionStorage.setItem(cacheKey, JSON.stringify({ data: res.forecastData, hash: fingerprint }));
             }
         } catch (error) {
@@ -206,20 +254,23 @@ export default function DashboardPage() {
     const fallbackLocalForecast = (projects) => {
         const aggregatedForecast = {};
         projects.forEach(p => {
-            const pForecast = generateProjectForecast(p);
+            const pForecast = generateProjectForecast(p); // returns [{name, Actual, Predicted}]
             if (Array.isArray(pForecast)) {
                 pForecast.forEach(entry => {
-                    if (!aggregatedForecast[entry.month]) aggregatedForecast[entry.month] = { actual: 0, forecast: 0 };
-                    aggregatedForecast[entry.month].actual += (entry.actual || 0);
-                    aggregatedForecast[entry.month].forecast += (entry.forecast || 0);
+                    // generateProjectForecast uses 'name' and 'Actual'/'Predicted' keys
+                    const key = entry.name;
+                    if (!aggregatedForecast[key]) aggregatedForecast[key] = { actual: 0, forecast: 0 };
+                    aggregatedForecast[key].actual += (entry.Actual || 0);
+                    aggregatedForecast[key].forecast += (entry.Predicted || 0);
                 });
             }
         });
-        const finalForecast = Object.keys(aggregatedForecast).map(month => ({
+        const rawForecast = Object.keys(aggregatedForecast).map(month => ({
             name: month,
             Actual: aggregatedForecast[month].actual,
             Predicted: aggregatedForecast[month].forecast
         }));
+        const finalForecast = postProcessForecast(rawForecast, projects);
         setStats(prev => ({ ...prev, forecastData: finalForecast }));
     }
 

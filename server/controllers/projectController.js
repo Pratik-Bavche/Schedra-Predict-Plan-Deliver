@@ -240,10 +240,18 @@ const autoFillTelemetryAll = asyncHandler(async (req, res) => {
         let current = new Date(start.getFullYear(), start.getMonth(), 1);
         const monthlyBudget = (Number(project.budget) || 120000) / 12;
 
-        while (current <= now) {
-            const monthLabel = current.toLocaleString('default', { month: 'short', year: 'numeric' });
+        // For completed projects, cap at dueDate; for ongoing, cap at today
+        const isCompleted = project.status === "Completed" ||
+            (project.dueDate && now > new Date(project.dueDate));
+        const loopEnd = isCompleted && project.dueDate
+            ? new Date(new Date(project.dueDate).getFullYear(), new Date(project.dueDate).getMonth(), 1)
+            : new Date(now.getFullYear(), now.getMonth(), 1);
+
+        while (current <= loopEnd) {
+            // Use 'en-US' locale to match frontend format ("Aug 2025")
+            const monthLabel = current.toLocaleString('en-US', { month: 'short', year: 'numeric' });
             
-            // Only add if not already present
+            // Only add if not already present (check both en-US and any old numeric format)
             const exists = project.telemetry.find(t => t.month === monthLabel);
             if (!exists) {
                 const variance = 0.8 + (Math.random() * 0.4);
@@ -264,5 +272,6 @@ const autoFillTelemetryAll = asyncHandler(async (req, res) => {
 
     res.json({ message: "Telemetry auto-filled for all projects" });
 });
+
 
 export { getProjects, getProjectById, createProject, deleteProject, updateProject, updateProjectTelemetry, updateProjectTelemetryBulk, autoFillTelemetryAll };

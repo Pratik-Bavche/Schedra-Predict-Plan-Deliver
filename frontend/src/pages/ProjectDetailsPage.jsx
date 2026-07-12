@@ -54,25 +54,56 @@ export default function ProjectDetailsPage() {
     const fetchProjectAI = async (projectData) => {
         setAiLoading(true)
         try {
-            // Parallel fetch for speed
             const [forecastRes, riskRes] = await Promise.all([
                 api.post("/predict/ai", { type: "project_cost_forecast", projectData }),
                 api.post("/predict/ai", { type: "project_risk_assessment", projectData })
             ]);
 
+            const rawForecast = forecastRes.forecastData || [];
             setAiStats({
-                forecast: forecastRes.forecastData || [],
+                forecast: postProcessForecast(rawForecast, projectData),
                 risks: riskRes.riskData || []
             });
-
         } catch (error) {
             console.error("AI Project Analysis Failed", error)
-            // Fallback handled by backend usually, but if API fails entirely:
             setAiStats({ forecast: [], risks: [] })
         } finally {
             setAiLoading(false)
         }
     }
+
+    /**
+     * Post-processes forecast data for a single project:
+     *  - Clips months after the project's dueDate (for completed projects)
+     *  - Marks the current month with isCurrentMonth:true (only for ongoing projects)
+     */
+    const postProcessForecast = (forecastData, proj) => {
+        if (!forecastData || forecastData.length === 0) return forecastData;
+
+        const currentMonthLabel = new Date().toLocaleString('en-US', { month: 'short', year: 'numeric' });
+        const dueDate = proj?.dueDate ? new Date(proj.dueDate) : null;
+        const isCompleted = proj?.status === 'Completed' ||
+            (dueDate && new Date() > dueDate);
+
+        return forecastData
+            .filter(d => {
+                if (!isCompleted || !dueDate) return true;
+                // Parse "Jun 2026" → Date
+                try {
+                    const parts = d.name.split(' ');
+                    const entryDate = new Date(`${parts[0]} 1, ${parts[1]}`);
+                    return (
+                        entryDate.getFullYear() < dueDate.getFullYear() ||
+                        (entryDate.getFullYear() === dueDate.getFullYear() &&
+                         entryDate.getMonth() <= dueDate.getMonth())
+                    );
+                } catch { return true; }
+            })
+            .map(d => ({
+                ...d,
+                isCurrentMonth: !isCompleted && d.name === currentMonthLabel
+            }));
+    };
 
     if (loading || (aiLoading && !project)) return (
         <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
@@ -82,7 +113,8 @@ export default function ProjectDetailsPage() {
     )
     if (!loading && !project) return <div className="p-8 text-center text-muted-foreground font-medium">Project not found. Please verify the URL.</div>
 
-    const forecastData = generateProjectForecast(project);
+    const forecastData = postProcessForecast(generateProjectForecast(project), project);
+    const chartForecast = aiStats.forecast.length > 0 ? aiStats.forecast : forecastData;
     const timelineTasks = generateProjectTimeline(project);
 
     // Dynamic values based on time
@@ -167,7 +199,7 @@ export default function ProjectDetailsPage() {
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div className="min-h-[400px]">
-                    <CostOverviewChart data={aiStats.forecast.length > 0 ? aiStats.forecast : forecastData} loading={aiLoading} />
+                    <CostOverviewChart data={chartForecast} loading={aiLoading} />
                 </div>
                 <div className="min-h-[400px]">
                     <RiskHeatmap data={aiStats.risks} loading={aiLoading} />

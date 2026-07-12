@@ -3,19 +3,38 @@ const BASE_URL = import.meta.env.DEV
     : "https://schedra-predict-plan-deliver-server.vercel.app/api";
 
 
+// Internal helper: sleep for `ms` milliseconds
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
 export const api = {
-    get: async (endpoint) => {
-        const response = await fetch(`${BASE_URL}${endpoint}`);
-        const contentType = response.headers.get("content-type");
+    /**
+     * GET with automatic retry.
+     * Attempts the request up to (1 + maxRetries) times before throwing.
+     * Delay between retries: 1000ms * attempt (exponential-ish backoff).
+     */
+    get: async (endpoint, { maxRetries = 2 } = {}) => {
+        let lastError;
+        for (let attempt = 0; attempt <= maxRetries; attempt++) {
+            try {
+                if (attempt > 0) await sleep(1000 * attempt); // 1s, then 2s
+                const response = await fetch(`${BASE_URL}${endpoint}`);
+                const contentType = response.headers.get("content-type");
 
-        if (!response.ok) {
-            throw new Error(`Server Error (${response.status}): Failed to fetch data. Check if backend is running.`);
-        }
+                if (!response.ok) {
+                    throw new Error(`Server Error (${response.status}): Failed to fetch data. Check if backend is running.`);
+                }
 
-        if (contentType && contentType.includes("application/json")) {
-            return await response.json();
+                if (contentType && contentType.includes("application/json")) {
+                    return await response.json();
+                }
+                return null;
+            } catch (err) {
+                lastError = err;
+                // Don't retry on non-network errors (e.g., 4xx client errors)
+                if (err.message.startsWith('Server Error (4')) break;
+            }
         }
-        return null;
+        throw lastError;
     },
 
     post: async (endpoint, data) => {

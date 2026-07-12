@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { MoreHorizontal, Plus, Archive, RotateCcw, Loader2, Activity } from "lucide-react"
+import { MoreHorizontal, Plus, Archive, RotateCcw, Loader2, Activity, RefreshCw, WifiOff } from "lucide-react"
 import { toast } from "sonner"
 import { api } from "@/lib/api"
 import { useNavigate } from "react-router-dom"
@@ -55,10 +55,12 @@ export default function ProjectsPage() {
     const [currentId, setCurrentId] = useState(null)
     const [telemetryOpen, setTelemetryOpen] = useState(false)
     const [selectedProjectForLog, setSelectedProjectForLog] = useState(null)
+    const [fetchError, setFetchError] = useState(false)
 
 
     const fetchProjects = async () => {
         setLoading(true)
+        setFetchError(false)
         try {
             const data = await api.get("/projects")
             const mapped = data.map(p => ({
@@ -71,7 +73,7 @@ export default function ProjectsPage() {
             }))
             setProjects(mapped)
         } catch {
-            toast.error("Failed to fetch projects")
+            setFetchError(true)
         } finally {
             setLoading(false)
         }
@@ -177,6 +179,58 @@ export default function ProjectsPage() {
     }
 
 
+
+    // ── Full-screen error state (shown when all retries are exhausted) ──────────
+    if (!loading && fetchError) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[70vh] px-4">
+                <div className="max-w-md w-full text-center space-y-6">
+                    {/* Icon */}
+                    <div className="flex justify-center">
+                        <div className="relative">
+                            <div className="h-24 w-24 rounded-full bg-destructive/10 flex items-center justify-center">
+                                <WifiOff className="h-12 w-12 text-destructive/70" />
+                            </div>
+                            <div className="absolute -bottom-1 -right-1 h-8 w-8 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center border-2 border-background">
+                                <span className="text-base">!</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Message */}
+                    <div className="space-y-2">
+                        <h2 className="text-2xl font-bold tracking-tight">Unable to Load Projects</h2>
+                        <p className="text-muted-foreground text-sm leading-relaxed">
+                            We couldn't reach the server after multiple attempts. This is usually caused by a
+                            temporary connection issue or a cold-starting server.
+                        </p>
+                    </div>
+
+                    {/* Tips */}
+                    <div className="p-4 bg-muted/50 rounded-lg text-left text-xs text-muted-foreground space-y-1.5">
+                        <p className="font-semibold text-foreground text-sm mb-2">Possible reasons:</p>
+                        <p>• Server is warming up (MongoDB Atlas free tier)</p>
+                        <p>• Temporary network interruption</p>
+                        <p>• Backend may be restarting</p>
+                    </div>
+
+                    {/* Retry button */}
+                    <Button
+                        size="lg"
+                        className="w-full gap-2 h-12 text-base font-semibold"
+                        onClick={fetchProjects}
+                    >
+                        <RefreshCw className="h-5 w-5" />
+                        Retry Loading Projects
+                    </Button>
+
+                    <p className="text-xs text-muted-foreground">
+                        The system automatically retried 2 times before showing this screen.
+                    </p>
+                </div>
+            </div>
+        )
+    }
 
     return (
         <div className="space-y-6">

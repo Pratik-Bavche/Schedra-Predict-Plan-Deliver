@@ -21,12 +21,32 @@ import { calculateCurrentPhase, calculateOverallProgress } from "@/lib/insightGe
 const generateFrontendFallback = (type, projectData) => {
     // IF TELEMETRY EXISTS, USE IT FOR COST FORECAST
     if (type === "cost_forecast" && projectData.telemetry && projectData.telemetry.length > 0) {
+        const dueDate = projectData.dueDate ? new Date(projectData.dueDate) : null;
+        const isCompleted = projectData.status === 'Completed' || (dueDate && new Date() > dueDate);
+        const currentMonthLabel = new Date().toLocaleString('en-US', { month: 'short', year: 'numeric' });
+
+        let telemetry = projectData.telemetry;
+        // For completed projects, only include months up to and including dueDate
+        if (isCompleted && dueDate) {
+            telemetry = telemetry.filter(t => {
+                try {
+                    const parts = t.month.split(' ');
+                    const d = new Date(`${parts[0]} 1, ${parts[1]}`);
+                    return (
+                        d.getFullYear() < dueDate.getFullYear() ||
+                        (d.getFullYear() === dueDate.getFullYear() && d.getMonth() <= dueDate.getMonth())
+                    );
+                } catch { return true; }
+            });
+        }
+
         return {
-            forecastData: projectData.telemetry.map(t => ({
+            forecastData: telemetry.map(t => ({
                 name: t.month,
                 Actual: t.actualSpend,
                 Predicted: (parseFloat(projectData.budget) / 12) * 1.1,
-                isActual: true
+                isActual: true,
+                isCurrentMonth: !isCompleted && t.month === currentMonthLabel
             })),
             finalCost: parseFloat(projectData.budget) * 1.05,
             overrunPercentage: 5,
@@ -192,7 +212,34 @@ export default function AnalyticsPage() {
         }
     }
 
+    /** Clips forecast data to months <= project dueDate when the project is completed */
+    const filterForecastForProject = (forecastData, project) => {
+        if (!forecastData || !forecastData.length) return forecastData;
+        const dueDate = project?.dueDate ? new Date(project.dueDate) : null;
+        const isCompleted = project?.status === 'Completed' || (dueDate && new Date() > dueDate);
+        const currentMonthLabel = new Date().toLocaleString('en-US', { month: 'short', year: 'numeric' });
+
+        return forecastData
+            .filter(d => {
+                if (!isCompleted || !dueDate) return true;
+                try {
+                    const parts = d.name.split(' ');
+                    const entryDate = new Date(`${parts[0]} 1, ${parts[1]}`);
+                    return (
+                        entryDate.getFullYear() < dueDate.getFullYear() ||
+                        (entryDate.getFullYear() === dueDate.getFullYear() &&
+                         entryDate.getMonth() <= dueDate.getMonth())
+                    );
+                } catch { return true; }
+            })
+            .map(d => ({
+                ...d,
+                isCurrentMonth: !isCompleted && d.name === currentMonthLabel
+            }));
+    };
+
     const fetchAIAnalytics = async (project) => {
+
         setLoadingAI(true)
         setAiProgress(0)
         setAiStatus("Initializing AI Engine...")
@@ -217,6 +264,12 @@ export default function AnalyticsPage() {
             }
 
             const [cost, resource, risk, timeline] = results;
+
+            // Filter forecast months beyond project completion
+            if (cost?.forecastData) {
+                cost.forecastData = filterForecastForProject(cost.forecastData, project);
+            }
+
             setCostData(cost)
             setResourceData(resource)
             setRiskData(risk)

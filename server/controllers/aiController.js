@@ -112,27 +112,34 @@ const callOpenRouter = async (apiKey, modelEntry, prompt, timeoutMs = 25000) => 
     return { text, modelName };
 };
 
-// ─── Try cascade of models ────────────────────────────────────────────────────
-const generateWithCascade = async (apiKey, prompt) => {
-    let lastError;
-    for (const model of MODEL_CASCADE) {
-        try {
-            return await callOpenRouter(apiKey, model, prompt);
-        } catch (err) {
-            console.error(`[${new Date().toLocaleTimeString()}] Model "${model}" failed: ${err.message}`);
-            lastError = err;
-        }
-    }
-    throw lastError;
-};
-
 // ─── Parse JSON from model response ──────────────────────────────────────────
 const parseJson = (text) => {
     let jsonStr = text.replace(/```json|```/g, "").trim();
     const first = jsonStr.indexOf("{");
     const last  = jsonStr.lastIndexOf("}");
-    if (first !== -1 && last !== -1) jsonStr = jsonStr.slice(first, last + 1);
+    // If there's no JSON object at all, fail fast so the cascade can try the next model
+    if (first === -1 || last === -1) throw new Error(`Response is not JSON (starts with: "${text.slice(0, 60)}")`);
+    jsonStr = jsonStr.slice(first, last + 1);
+    // Sanitize: some models echo back dollar-formatted numbers like $45,659 — strip to plain numbers
+    jsonStr = jsonStr.replace(/:\s*"?\$(\d[\d,.]*)/g, (_, num) => `: ${num.replace(/,/g, "")}`);
     return JSON.parse(jsonStr);
+};
+
+// ─── Try cascade of models (with JSON validation per attempt) ─────────────────
+const generateWithCascade = async (apiKey, prompt) => {
+    let lastError;
+    for (const model of MODEL_CASCADE) {
+        try {
+            const { text, modelName } = await callOpenRouter(apiKey, model, prompt);
+            // Validate JSON inside the cascade — a non-JSON response tries the next model
+            const data = parseJson(text);
+            return { data, modelName };
+        } catch (err) {
+            console.error(`[${new Date().toLocaleTimeString()}] Model "${model.id}" failed: ${err.message}`);
+            lastError = err;
+        }
+    }
+    throw lastError;
 };
 
 // ─── Main Handler ─────────────────────────────────────────────────────────────
@@ -222,7 +229,7 @@ export const getAIAnalytics = async (req, res) => {
 
         const monthlyActualStr = windowMonths.map(m => {
             const actual = aggregatedTelemetry[m];
-            return `"${m}": ${actual != null ? `$${actual}` : "no data"}`;
+            return `"${m}": ${actual != null ? actual : "no data"}`;
         }).join(", ");
 
         prompt = `You are an expert AI financial analyst for a project management platform called Schedra.
@@ -362,9 +369,8 @@ Return ONLY this JSON:
 
     // ─── Call AI with cascade ─────────────────────────────────────────────────
     try {
-        const { text, modelName } = await generateWithCascade(apiKey, prompt);
+        const { data, modelName } = await generateWithCascade(apiKey, prompt);
 
-        const data = parseJson(text);
         data.__aiSource = "openrouter";
         data.__aiModel = modelName;
 
